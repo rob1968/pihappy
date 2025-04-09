@@ -20,9 +20,10 @@ def api_winkels():
     winkels = list(db.winkels.find({}, {"_id": 0}))  # hide Mongo _id
     return jsonify(winkels)
 
-@winkels_bp.route("/winkels")
-def winkels_map():
-    return render_template("winkels.html", google_maps_api_key=GOOGLE_MAPS_API_KEY)
+# Removed the /winkels route that rendered the HTML template
+# @winkels_bp.route("/winkels")
+# def winkels_map():
+#     return render_template("winkels.html", google_maps_api_key=GOOGLE_MAPS_API_KEY)
 
 @winkels_bp.route("/zoek_winkel", methods=["POST"])
 def zoek_winkel():

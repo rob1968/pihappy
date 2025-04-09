@@ -8,6 +8,7 @@ import Pilocations from "./components/Pilocations"; // Import Pilocations map pa
 import ProfilePage from "./components/ProfilePage"; // Import ProfilePage
 import WelcomePage from "./components/WelcomePage"; // Import WelcomePage
 import HomePageWrapper from "./components/HomePageWrapper"; // Import the wrapper
+import NotFoundPage from "./components/NotFoundPage"; // Import the 404 component
 function App() {
   return (
     <Router>
@@ -21,6 +22,7 @@ function App() {
         <Route path="/profile/:userId" element={<ProfilePage />} /> {/* Route for specific user profiles */}
         <Route path="/profile" element={<ProfilePage />} /> {/* Route for the logged-in user's profile */}
         <Route path="/welcome" element={<WelcomePage />} /> {/* Add route for WelcomePage */}
+        <Route path="*" element={<NotFoundPage />} /> {/* Catch-all route for 404 */}
       </Routes>
     </Router>
   );

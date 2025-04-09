@@ -73,10 +73,12 @@ app.register_blueprint(community_bp)
 app.register_blueprint(winkels_bp)
 app.register_blueprint(tts_bp) # Register the TTS blueprint
 # ❌ Error handlers
-@app.errorhandler(404)
-def pagina_niet_gevonden(e):
-    logger.error(f"404 Error: {e}")
-    return render_template("404.html"), 404
+# Removed 404 handler - React Router handles this now.
+# @app.errorhandler(404)
+# def pagina_niet_gevonden(e):
+#     logger.error(f"404 Error: {e}")
+#     # Return JSON for API-like requests, React handles browser routes
+#     return jsonify({"error": "Not Found", "message": str(e)}), 404
 
 @app.errorhandler(Exception) # Catch more general exceptions that might lead to 500
 def handle_exception(e):
@@ -94,17 +96,18 @@ def handle_exception(e):
         response.status_code = 500
         return response
 
-    # Otherwise, return the HTML error page for browser requests
-    # Check if it's a 500 error specifically or re-raise if needed
-    from werkzeug.exceptions import HTTPException
-    if isinstance(e, HTTPException):
-        # Use the specific error code if it's an HTTP exception
-        if e.code == 500:
-             return render_template("500.html"), 500
-        # Handle other HTTP errors if needed, or re-raise
-        # return render_template("error.html", error=e), e.code
-    # For non-HTTP exceptions, return the generic 500 page
-    return render_template("500.html"), 500
+    # For non-API requests, Flask/Werkzeug will likely return a default plain error page.
+    # We prioritize returning JSON for API errors.
+    # If you absolutely need a fallback HTML, you could keep the 500.html render here,
+    # but it won't be styled like your React app.
+    # For now, we'll rely on the JSON response for API errors and default browser/werkzeug
+    # pages for direct server errors not caught by API checks.
+    # Returning a generic JSON error for non-API 500 errors as well.
+    return jsonify({
+        "status": "error",
+        "message": "An internal server error occurred.",
+        "error_details": str(e) # Include error details for debugging
+        }), 500
 
 # 🏁 Start
 if __name__ == "__main__":
