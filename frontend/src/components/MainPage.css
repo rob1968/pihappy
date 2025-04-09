@@ -227,6 +227,110 @@ button:disabled {
   border: 1px solid #eee;
 }
 
+/* Delete Message Button Style */
+.delete-message-button {
+  background: none;
+  border: none;
+  color: #dc3545; /* Red color */
+  font-size: 1em; /* Adjust size if needed */
+  font-weight: normal; /* Remove bold if desired */
+  cursor: pointer;
+  padding: 2px 4px; /* Small padding */
+  margin: 0; /* Remove margin */
+  /* vertical-align: middle; */ /* Not needed with absolute */
+  opacity: 0.5; /* More faded initially */
+  transition: opacity 0.2s ease;
+  /* Reset button styles */
+  width: auto;
+  /* display: inline-block; */ /* Not needed */
+  position: absolute; /* Position relative to parent */
+  top: 5px; /* Distance from top */
+  right: 7px; /* Distance from right */
+  line-height: 1; /* Prevent extra height */
+  margin-top: 0;
+}
+
+/* Chat Input Area */
+.chat-input-container {
+  display: flex; /* Arrange input and button side-by-side */
+  align-items: center; /* Vertically align items */
+  margin-top: 15px; /* Space above the input area */
+  border: 1px solid #dcdcdc; /* Border around the container */
+  border-radius: 6px; /* Match other inputs */
+  overflow: hidden; /* Keep button contained */
+  background-color: #fff; /* White background */
+}
+
+.chat-input-container:focus-within {
+  border-color: #7a6aaf; /* Purple focus outline on container */
+  box-shadow: 0 0 0 2px rgba(94, 69, 156, 0.2); /* Subtle focus shadow */
+}
+
+.chat-input-field {
+  flex-grow: 1; /* Input takes up available space */
+  border: none; /* Remove individual input border */
+  padding: 12px 14px; /* Match other inputs */
+  margin: 0; /* Remove default margins */
+  border-radius: 0; /* Remove individual radius */
+  box-shadow: none; /* Remove individual shadow */
+  outline: none; /* Remove default outline */
+  font-size: 1em;
+}
+
+.chat-send-button {
+  flex-shrink: 0; /* Prevent button from shrinking */
+  background-color: #5e459c; /* Pi Primary Purple */
+  color: white;
+  border: none;
+  padding: 10px 15px; /* Adjust padding for icon */
+  cursor: pointer;
+  font-size: 1.2em; /* Adjust icon size */
+  line-height: 1; /* Ensure icon vertical alignment */
+  border-radius: 0; /* Remove button radius */
+  margin: 0; /* Remove default margins */
+  align-self: stretch; /* Make button height match container */
+  transition: background-color 0.2s ease;
+  /* Reset inherited button styles */
+  width: auto;
+  display: flex; /* Center icon */
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-send-button:hover {
+  background-color: #4a367c; /* Darker Pi Purple */
+  transform: none; /* Remove hover transform */
+}
+
+.chat-send-button:disabled {
+  background-color: #b0a8c7; /* Lighter purple disabled */
+  cursor: not-allowed;
+}
+
+.delete-message-button:hover {
+  opacity: 1; /* Full opacity on hover */
+  color: #a71d2a; /* Darker red on hover */
+  background-color: transparent; /* Ensure no background on hover */
+  transform: none; /* Ensure no transform on hover */
+}
+
+/* Adjust positioning within message bubble */
+.message {
+  position: relative; /* Needed for absolute positioning of the button */
+  /* display: flex; */ /* Remove flex if using absolute positioning */
+  /* align-items: flex-start; */
+  /* justify-content: space-between; */ /* Not needed */
+  /* Add padding to the right of the message bubble itself to prevent text overlap */
+  padding-right: 30px; /* Adjust as needed based on button size */
+}
+
+.message .bericht-tekst {
+    /* flex-grow: 1; */ /* Not needed */
+    /* margin-right: 5px; */ /* Not needed */
+}
+
+/* Absolute positioning is now applied directly above */
+
 #statistieken_resultaat p {
   margin-bottom: 8px;
 }

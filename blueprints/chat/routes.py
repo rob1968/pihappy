@@ -66,11 +66,13 @@ def chat():
         session.pop("wacht_op_locatie")
         return jsonify({"antwoord": vind_winkel_in_buurt(vraag)})
 
-    session["chat_geschiedenis"].append({
+    user_tijd = datetime.utcnow().isoformat() + "Z" # Generate timestamp for user message
+    user_message_data = {
         "role": "user",
         "content": vraag,
-        "tijd": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    })
+        "tijd": user_tijd # Use the generated timestamp
+    }
+    session["chat_geschiedenis"].append(user_message_data)
     session["chat_teller"] += 1
 
     # Determine language for AI response
@@ -111,11 +113,8 @@ def chat():
 
     # Prepare messages for OpenAI, adding language instruction to the latest user message
     messages_for_api = list(session["chat_geschiedenis"]) # Create a mutable copy
-    if messages_for_api and messages_for_api[-1]["role"] == "user":
-        # Add language instruction based on target_language determined earlier
-        lang_instruction = f" (Respond ONLY in {target_language})"
-        messages_for_api[-1]["content"] += lang_instruction
-        logger.debug(f"Chat: Added language instruction to last user message: {messages_for_api[-1]['content']}")
+    # Removed block that appended language instruction to the user message content
+    # The system prompt already handles language instruction.
 
     logger.debug("Chat: Sending request to OpenAI...")
     try:
@@ -127,11 +126,13 @@ def chat():
     except Exception as e:
         return jsonify({"antwoord": f"⚠️ AI-fout: {str(e)}"})
 
-    session["chat_geschiedenis"].append({
+    assistant_tijd = datetime.utcnow().isoformat() + "Z" # Generate timestamp ONCE
+    assistant_message_data = {
         "role": "assistant",
         "content": antwoord,
-        "tijd": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    })
+        "tijd": assistant_tijd # Use the generated timestamp
+    }
+    session["chat_geschiedenis"].append(assistant_message_data)
 
     # 💡 Donatie prompt
     extra_bericht = ""
@@ -172,7 +173,9 @@ def chat():
     return jsonify({
         "antwoord": antwoord,
         "extra": extra_bericht,
-        "chat_geschiedenis": session["chat_geschiedenis"]
+        "chat_geschiedenis": session["chat_geschiedenis"],
+        "assistant_message": assistant_message_data, # Return the full assistant message object
+        "user_message": user_message_data # ALSO return the user message object with the correct 'tijd'
     })
 
 @chat_bp.route("/chat/verwijder/<bericht_id>", methods=["DELETE"])
@@ -182,9 +185,24 @@ def verwijder_bericht(bericht_id):
 
     gebruiker_id = session["gebruiker"]["id"]
     geschiedenis = laad_chatgeschiedenis(gebruiker_id)
+    logger.debug(f"Attempting to delete message with ID (from URL): '{bericht_id}'") # Log received ID
 
-    nieuwe_geschiedenis = [b for b in geschiedenis if b.get("tijd") != bericht_id]
-    if len(nieuwe_geschiedenis) == len(geschiedenis):
+    # Log the comparison process
+    nieuwe_geschiedenis = []
+    found = False
+    for b in geschiedenis:
+        stored_tijd = b.get("tijd")
+        logger.debug(f"Comparing URL ID '{bericht_id}' with stored tijd '{stored_tijd}'")
+        if stored_tijd == bericht_id:
+            logger.debug(f"Match found! Skipping message with tijd '{stored_tijd}'")
+            found = True
+        else:
+            nieuwe_geschiedenis.append(b)
+
+    # Check if a message was actually removed (using the 'found' flag)
+    # if len(nieuwe_geschiedenis) == len(geschiedenis): # Old check
+    if not found: # New check based on explicit comparison
+        # Indent the following block correctly
         return jsonify({"status": "error", "message": "Bericht niet gevonden"}), 404
 
     sla_chatgeschiedenis_op(gebruiker_id, nieuwe_geschiedenis)

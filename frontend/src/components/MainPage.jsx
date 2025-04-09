@@ -137,16 +137,12 @@ const MainPage = () => {
     const handleChatSubmit = async () => { // Make async
         if (aiIsBezig || !chatInput.trim()) return;
 
-        const userMessage = {
-            role: "user",
-            content: chatInput.trim(),
-            tijd: new Date().toISOString() // Use ISO string for consistency
-        };
+        // Prepare user message content, but don't generate timestamp here
+        const userMessageContent = chatInput.trim();
 
-        // Add user message optimistically
-        setChatMessages(prevMessages => [...prevMessages, userMessage]);
-        const currentInput = chatInput; // Store current input before clearing
-        setChatInput(''); // Clear input immediately
+        // Clear input immediately, but don't add message to state yet
+        const currentInput = chatInput; // Store current input in case of error (optional)
+        setChatInput('');
         setAiIsBezig(true); // Set loading state
 
         try {
@@ -155,26 +151,40 @@ const MainPage = () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ vraag: userMessage.content }),
+                body: JSON.stringify({ vraag: userMessageContent }), // Send only the content
                 credentials: 'include' // Add credentials here
             });
 
             if (response.ok) {
                 const data = await response.json();
-                // Add assistant message from response
-                const assistantMessage = { role: "assistant", content: data.antwoord, tijd: new Date().toISOString() };
-                setChatMessages(prevMessages => [...prevMessages, assistantMessage]);
-                // Handle sound playback if enabled
-                playTextToSpeech(data.antwoord, userLanguage); // Pass user language
+                // Add BOTH user and assistant messages AFTER successful backend response, using backend timestamps
+                const messagesToAdd = [];
+                if (data.user_message && data.user_message.tijd) {
+                    messagesToAdd.push(data.user_message);
+                } else {
+                     console.warn("Backend did not return user_message object with tijd.");
+                     // Optionally add a fallback with frontend time if needed, but ideally backend should always return it
+                }
+                if (data.assistant_message && data.assistant_message.tijd) {
+                    messagesToAdd.push(data.assistant_message);
+                     // Handle sound playback only if assistant message is valid
+                     playTextToSpeech(data.assistant_message.content, userLanguage);
+                } else {
+                     console.warn("Backend did not return assistant_message object with tijd.");
+                }
+
+                if (messagesToAdd.length > 0) {
+                    setChatMessages(prevMessages => [...prevMessages, ...messagesToAdd]);
+                }
+
             } else {
-                // Handle specific errors like 400 Bad Request (length limit)
-                const data = await response.json(); // Try to get error message from body
-                const errorText = data.antwoord || data.message || response.statusText; // Use specific or generic error
+                // Handle API errors
+                const errorData = await response.json().catch(() => ({})); // Try to parse error JSON
+                const errorText = errorData.antwoord || errorData.message || response.statusText;
                 console.error("Failed to send chat message:", response.status, errorText);
-                // Show error message in a popup alert without prefix
-                alert(errorText);
-                // Ensure input is not repopulated on error
-                // setChatInput(currentInput); // Keep this commented/removed
+                alert(`Error: ${errorText}`);
+                // Optionally restore user input on error
+                // setChatInput(currentInput);
             }
         } catch (error) {
             console.error("Error sending chat message:", error);
@@ -182,6 +192,40 @@ const MainPage = () => {
             setChatMessages(prevMessages => [...prevMessages, errorMessage]);
         } finally {
             setAiIsBezig(false); // Reset loading state
+        }
+    };
+
+    const handleDeleteMessage = async (messageId) => {
+        if (!messageId) {
+            console.error("Cannot delete message without an ID (tijd).");
+            return;
+        }
+        console.log(`Attempting to delete message with ID: ${messageId}`);
+
+        // Optional: Add a confirmation dialog
+        // if (!window.confirm("Are you sure you want to delete this message?")) {
+        //     return;
+        // }
+
+        try {
+            const response = await fetch(`/chat/verwijder/${messageId}`, {
+                method: 'DELETE',
+                credentials: 'include' // Include credentials if needed by backend auth
+            });
+
+            if (response.ok) {
+                console.log(`Message ${messageId} deleted successfully.`);
+                // Update frontend state by removing the message
+                setChatMessages(prevMessages => prevMessages.filter(msg => msg.tijd !== messageId));
+                console.log(`Chat messages state updated after deleting ${messageId}.`); // Add log confirmation
+            } else {
+                const errorData = await response.json().catch(() => ({})); // Try to parse error
+                console.error(`Failed to delete message ${messageId}:`, response.status, errorData.message || response.statusText);
+                alert(`Error deleting message: ${errorData.message || response.statusText}`);
+            }
+        } catch (error) {
+            console.error(`Network error deleting message ${messageId}:`, error);
+            alert(`Network error: ${error.message}`);
         }
     };
 
@@ -472,20 +516,44 @@ const MainPage = () => {
                         <strong>{msg.role === "user" ? "You" : msg.role === "assistant" ? "AI" : "⚠️ Error"}:</strong>
                         {/* Add data-original-text attribute */}
                         <span className="bericht-tekst" data-original-text={msg.content}>{msg.content}</span>
+                        {/* Add Delete Button */}
+                        <button
+                            onClick={() => handleDeleteMessage(msg.tijd)}
+                            className="delete-message-button"
+                            title="Delete this message"
+                            aria-label="Delete message"
+                            // Only show delete for user messages? Or all? Let's allow deleting all for now.
+                            // style={{ display: msg.role === 'user' ? 'inline-block' : 'none' }} // Example to only show for user
+                        >
+                            🗑️ {/* Dustbin icon */}
+                        </button>
                      </div>
                 ))}
             </div>
 
-            <input
-                type="text"
-                id="chatInput" // Keep ID
-                placeholder="Ask a question..."
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && !aiIsBezig && handleChatSubmit()}
-                disabled={aiIsBezig}
-            />
-            <button id="sendButton" onClick={handleChatSubmit} disabled={aiIsBezig}>Send</button>
+            {/* Container for input and send button */}
+            <div className="chat-input-container">
+                <input
+                    type="text"
+                    id="chatInput" // Keep ID
+                    placeholder="Ask a question..."
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && !aiIsBezig && handleChatSubmit()}
+                    disabled={aiIsBezig}
+                    className="chat-input-field" // Add class for styling
+                />
+                <button
+                    id="sendButton" // Keep ID
+                    onClick={handleChatSubmit}
+                    disabled={aiIsBezig}
+                    className="chat-send-button" // Add class for styling
+                    title="Send message"
+                    aria-label="Send message"
+                >
+                    ▶️ {/* Send icon (e.g., paper plane) */}
+                </button>
+            </div>
 
             {/* Community Section removed (moved to CommunityPage.jsx) */}
 
