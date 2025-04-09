@@ -18,3 +18,8 @@ frontend/node_modules/
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Utility/Migration Scripts (one-time use)
+migrate_shops_to_winkels.py
+empty_winkels_collection.py
+rename_location_field.py
