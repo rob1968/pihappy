@@ -190,14 +190,31 @@ button:disabled {
   border-radius: 3px;
 }
 
-/* AI Feedback Box - Pi Style */
+/* AI Feedback Box - Diary Style */
 .ai-feedback-box {
-  background-color: #f0e6ff; /* Light purple feedback */
-  border: 1px solid #dcd0f0;
-  border-radius: 8px;
-  padding: 15px;
-  margin: 20px 0;
-  color: #4a367c;
+  background-color: #fdf5e6; /* Parchment-like background */
+  border: 1px solid #e0d8c6; /* Subtle border */
+  border-radius: 5px; /* Less rounded */
+  padding: 20px; /* More padding */
+  margin: 25px 0; /* More margin */
+  color: #5a4a3a; /* Darker brown text */
+  font-family: 'Georgia', serif; /* Serif font for diary feel */
+  white-space: pre-wrap; /* Respect newlines for paragraphs */
+  line-height: 1.7; /* Slightly more line spacing */
+  box-shadow: 1px 1px 3px rgba(0,0,0,0.1); /* Subtle shadow */
+}
+
+/* Add margin between direct child elements (paragraphs, lists) inside the feedback box */
+.ai-feedback-box > p,
+.ai-feedback-box > ul,
+.ai-feedback-box > ol {
+  margin-bottom: 1em; /* Adjust value as needed for desired spacing */
+}
+
+/* Ensure the last paragraph doesn't have extra margin */
+/* Ensure the last direct child element doesn't have extra margin */
+.ai-feedback-box > *:last-child {
+  margin-bottom: 0;
 }
 
 /* Community Section - Pi Style */

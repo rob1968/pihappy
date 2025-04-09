@@ -291,6 +291,75 @@ const MainPage = () => {
         }
     }, [chatMessages]);
 
+    // Helper function to render feedback with paragraphs, bolding, and lists
+    const renderFeedback = (feedbackText) => {
+        if (!feedbackText || typeof feedbackText !== 'string') {
+            return <p>{feedbackText || ''}</p>; // Handle empty/non-string feedback
+        }
+
+        const lines = feedbackText.split('\n');
+        const renderedElements = [];
+        // Only need ordered list items now
+        let currentOrderedListItems = [];
+        let keyCounter = 0; // For unique keys
+
+        lines.forEach((line) => {
+            const trimmedLine = line.trim();
+            const orderedListMatch = trimmedLine.match(/^(\d+)\.\s*\*\*(.*)/); // Regex for "1. ** text"
+            const bulletListMatch = trimmedLine.startsWith('- **');
+
+            // --- Close any open ordered list if the current line is not a list item ---
+            if (!orderedListMatch && !bulletListMatch && currentOrderedListItems.length > 0) {
+                 // Close ordered list
+                 renderedElements.push(
+                    <ol key={`ol-${keyCounter++}`} style={{ paddingLeft: '20px' }}> {/* Basic ordered list styling */}
+                        {currentOrderedListItems.map((item, itemIndex) => (
+                            <li key={itemIndex}>{item}</li>
+                        ))}
+                    </ol>
+                );
+                currentOrderedListItems = [];
+            }
+
+            // --- Process the current line ---
+            if (bulletListMatch) {
+                // Treat as ordered list item
+                const content = trimmedLine.substring(4).trim(); // Remove '- ** '
+                if (content) {
+                    currentOrderedListItems.push(content);
+                }
+            } else if (orderedListMatch) {
+                // Ordered list item
+                const content = orderedListMatch[2].trim(); // Get text after "1. ** "
+                if (content) {
+                    currentOrderedListItems.push(content);
+                }
+            } else if (trimmedLine) {
+                 // Regular or bold paragraph (ensure no lists are open)
+                 if (trimmedLine.startsWith('###')) {
+                     const content = trimmedLine.substring(3).trim();
+                     renderedElements.push(<p key={`p-${keyCounter++}`}><strong>{content}</strong></p>);
+                 } else {
+                     renderedElements.push(<p key={`p-${keyCounter++}`}>{trimmedLine}</p>);
+                 }
+            }
+        });
+
+        // --- Process any remaining ordered list items at the end ---
+        if (currentOrderedListItems.length > 0) {
+             renderedElements.push(
+                <ol key={`ol-${keyCounter++}`} style={{ paddingLeft: '20px' }}>
+                    {currentOrderedListItems.map((item, itemIndex) => (
+                        <li key={itemIndex}>{item}</li>
+                    ))}
+                </ol>
+            );
+        }
+
+        // If no elements were generated (e.g., only whitespace input), return null or an empty paragraph
+        return renderedElements.length > 0 ? renderedElements : null;
+    };
+
     return (
         <div className="container">
             {/* Flashed Messages */}
@@ -360,8 +429,12 @@ const MainPage = () => {
                         className="ai-feedback-box"
                         aria-hidden={!feedbackVisible}
                         style={{ display: feedbackVisible ? 'block' : 'none' }}
-                        dangerouslySetInnerHTML={{ __html: eigenFeedback }} // Assuming feedback might contain HTML
-                    />
+                        // Render paragraphs manually instead of using dangerouslySetInnerHTML
+                      >
+                        {/* Use the helper function to render the feedback */}
+                        {renderFeedback(eigenFeedback)}
+                      </div>
+                      {/* Removed extraneous closing tag from previous diff error */}
                     <button
                         id="toggleFeedbackButton" // Keep ID for potential direct manipulation
                         aria-expanded={feedbackVisible}
