@@ -1,9 +1,9 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useEffect } from "react"; // Removed useRef, useCallback
 import { useNavigate } from "react-router-dom";
-import { useJsApiLoader, Autocomplete } from "@react-google-maps/api";
+// Removed useJsApiLoader, Autocomplete
 import './MainPage.css'; // Import the shared CSS file
 
-const libraries = ["places"];
+// Removed libraries constant
 
 const AuthForm = () => {
   const [isLoginMode, setIsLoginMode] = useState(true); // Start in Login mode
@@ -13,20 +13,11 @@ const AuthForm = () => {
   const [password, setPassword] = useState("");
   const [name, setName] = useState(""); // Register only
   const [landen, setLanden] = useState([]); // Register only
-  const [heeftWinkel, setHeeftWinkel] = useState("nee"); // Register only
-  const [winkelnaam, setWinkelnaam] = useState(""); // Register only
-  const [locatie, setLocatie] = useState(""); // Register only
+  // Removed heeftWinkel, winkelnaam, locatie state
   const [gekozenLand, setGekozenLand] = useState(""); // Register only
 
   const navigate = useNavigate();
-  const autocompleteRef = useRef(null);
-
-  // Load Google Maps script (only needed for Register)
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
-    libraries,
-    preventGoogleFontsLoading: true, // Optional: prevent loading fonts
-  });
+  // Removed autocompleteRef and useJsApiLoader hook
 
   // Fetch landen (only needed for Register)
   useEffect(() => {
@@ -38,17 +29,7 @@ const AuthForm = () => {
     }
   }, [isLoginMode]); // Re-fetch if mode changes (though unlikely needed)
 
-  // Handlers from Register
-  const onPlaceChanged = useCallback(() => {
-    const place = autocompleteRef.current?.getPlace();
-    if (place?.formatted_address) {
-      setLocatie(place.formatted_address);
-    }
-  }, []);
-
-  const handleWinkelChange = (e) => {
-    setHeeftWinkel(e.target.value);
-  };
+  // Removed onPlaceChanged and handleWinkelChange handlers
 
   // Combined Submit Handler
   const handleSubmit = async (e) => {
@@ -82,18 +63,12 @@ const AuthForm = () => {
         email,
         wachtwoord: password,
         land: gekozenLand,
-        heeft_winkel: heeftWinkel,
-        winkelnaam: heeftWinkel === "ja" ? winkelnaam : "",
-        locatie: heeftWinkel === "ja" ? locatie : "",
+        // Removed shop-related fields from registration data
         browser_lang: browserLang.split('-')[0], // Send primary language code (e.g., 'en' from 'en-US')
         timestamp: new Date().toISOString(),
       };
 
-      // Basic validation check (can be expanded)
-      if (heeftWinkel === "ja" && (!winkelnaam || !locatie)) {
-          alert("Vul a.u.b. de winkelnaam en locatie in.");
-          return;
-      }
+      // Removed shop-related validation
       if (!name || !email || !password || !gekozenLand) {
           alert("Vul a.u.b. alle verplichte velden in.");
           return;
@@ -115,9 +90,7 @@ const AuthForm = () => {
             setName("");
             setPassword(""); // Clear password for login
             setGekozenLand("");
-            setHeeftWinkel("nee");
-            setWinkelnaam("");
-            setLocatie("");
+            // Removed clearing of shop state
           } else {
              alert(`Fout bij registreren: ${result.message}`);
           }
@@ -136,9 +109,7 @@ const AuthForm = () => {
     setPassword("");
     setName("");
     setGekozenLand("");
-    setHeeftWinkel("nee");
-    setWinkelnaam("");
-    setLocatie("");
+    // Removed clearing of shop state
   };
 
   return (
@@ -224,72 +195,7 @@ const AuthForm = () => {
                     </select>
                   </div>
 
-                  <div className="mb-3">
-                    <label htmlFor="heeft_winkel" className="form-label">
-                      🏪 Heb je een winkel?
-                    </label>
-                    <select
-                      id="heeft_winkel"
-                      name="heeft_winkel"
-                      className="form-select"
-                      value={heeftWinkel}
-                      onChange={handleWinkelChange}
-                    >
-                      <option value="nee">Nee</option>
-                      <option value="ja">Ja</option>
-                    </select>
-                  </div>
-
-                  {heeftWinkel === "ja" && (
-                    <div id="winkelgegevens">
-                      <div className="mb-3">
-                        <label htmlFor="winkelnaam" className="form-label">
-                          🏷️ Naam winkel <span className="text-danger">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          id="winkelnaam"
-                          name="winkelnaam"
-                          className="form-control"
-                          value={winkelnaam}
-                          onChange={(e) => setWinkelnaam(e.target.value)}
-                          required={heeftWinkel === "ja"} // Required only if has winkel
-                        />
-                      </div>
-
-                      <div className="mb-3">
-                        <label htmlFor="locatie" className="form-label">
-                          📍 Locatie <span className="text-danger">*</span>
-                        </label>
-                        {isLoaded ? (
-                          <Autocomplete
-                            onLoad={(auto) => (autocompleteRef.current = auto)}
-                            onPlaceChanged={onPlaceChanged}
-                          >
-                            <input
-                              type="text"
-                              id="locatie"
-                              name="locatie"
-                              className="form-control"
-                              placeholder="Voer je winkeladres in"
-                              value={locatie}
-                              onChange={(e) => setLocatie(e.target.value)}
-                              required={heeftWinkel === "ja"} // Required only if has winkel
-                            />
-                          </Autocomplete>
-                        ) : (
-                          <input
-                            type="text"
-                            id="locatie"
-                            name="locatie"
-                            className="form-control"
-                            placeholder="Laden Google Maps..."
-                            disabled
-                          />
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  {/* Removed "Heb je een winkel?" dropdown and conditional shop details form */}
                 </>
               )}
 

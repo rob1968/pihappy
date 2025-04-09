@@ -1,30 +1,14 @@
-import React, { useState, useRef, useCallback } from "react";
-import { useJsApiLoader, Autocomplete } from "@react-google-maps/api";
-
-const libraries = ["places"];
+import React, { useState } from "react";
+// Removed useRef, useCallback, useJsApiLoader, Autocomplete imports
 
 const Register = () => {
   const [landen, setLanden] = useState([]);
-  const [heeftWinkel, setHeeftWinkel] = useState("nee");
-  const [winkelnaam, setWinkelnaam] = useState("");
-  const [locatie, setLocatie] = useState("");
+  // Removed heeftWinkel, winkelnaam, locatie state
   const [gekozenLand, setGekozenLand] = useState("");
 
-  const autocompleteRef = useRef(null);
+  // Removed autocompleteRef and useJsApiLoader hook
 
-  // ✅ Load Google Maps script with Autocomplete support
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY,
-    libraries,
-  });
-
-  const onPlaceChanged = useCallback(() => {
-    const place = autocompleteRef.current?.getPlace();
-    if (place?.formatted_address) {
-      setLocatie(place.formatted_address);
-    }
-  }, []);
-
+  // Removed onPlaceChanged callback
   React.useEffect(() => {
     fetch("/api/landen")
       .then((res) => res.json())
@@ -32,10 +16,7 @@ const Register = () => {
       .catch((err) => console.error("Fout bij ophalen landen:", err));
   }, []);
 
-  const handleWinkelChange = (e) => {
-    setHeeftWinkel(e.target.value);
-  };
-
+  // Removed handleWinkelChange handler
   const handleSubmit = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -108,63 +89,7 @@ const Register = () => {
                 </select>
               </div>
 
-              <div className="mb-3">
-                <label htmlFor="heeft_winkel" className="form-label">🏪 Heb je een winkel?</label>
-                <select
-                  id="heeft_winkel"
-                  name="heeft_winkel"
-                  className="form-select"
-                  value={heeftWinkel}
-                  onChange={handleWinkelChange}
-                >
-                  <option value="nee">Nee</option>
-                  <option value="ja">Ja</option>
-                </select>
-              </div>
-
-              {heeftWinkel === "ja" && (
-                <div id="winkelgegevens">
-                  <div className="mb-3">
-                    <label htmlFor="winkelnaam" className="form-label">🏷️ Naam winkel *</label>
-                    <input
-                      type="text"
-                      id="winkelnaam"
-                      name="winkelnaam"
-                      className="form-control"
-                      value={winkelnaam}
-                      onChange={(e) => setWinkelnaam(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className="mb-3">
-                    <label htmlFor="locatie" className="form-label">📍 Locatie *</label>
-                    {isLoaded ? (
-                      <Autocomplete onLoad={(auto) => (autocompleteRef.current = auto)} onPlaceChanged={onPlaceChanged}>
-                        <input
-                          type="text"
-                          id="locatie"
-                          name="locatie"
-                          className="form-control"
-                          placeholder="Voer je winkeladres in"
-                          value={locatie}
-                          onChange={(e) => setLocatie(e.target.value)}
-                          required
-                        />
-                      </Autocomplete>
-                    ) : (
-                      <input
-                        type="text"
-                        id="locatie"
-                        name="locatie"
-                        className="form-control"
-                        placeholder="Laden Google Maps..."
-                        disabled
-                      />
-                    )}
-                  </div>
-                </div>
-              )}
+              {/* Removed "Heb je een winkel?" dropdown and conditional shop details form */}
 
               <button type="submit" className="btn btn-primary w-100 mt-3">✅ Registreren</button>
             </form>

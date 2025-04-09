@@ -36,10 +36,7 @@
     <label for="category-filter">Filter op categorie:</label>
     <select id="category-filter">
       <option value="all">Alle</option>
-      <option value="restaurant">Restaurants</option>
-      <option value="electronics">Elektronica</option>
-      <option value="supermarket">Supermarkten</option>
-      <option value="clothing">Kleding</option>
+      <!-- Categories will be loaded dynamically -->
     </select>
   </div>
   <div id="map"></div>
@@ -54,47 +51,87 @@
         zoom: 10
       });
 
-      fetch("/api/winkels")
+      // Fetch categories and populate the dropdown
+      fetchCategories();
+
+      // Fetch shops and add markers
+      fetchShops();
+
+    } // End of initMap
+
+    function fetchCategories() {
+      fetch("/api/categories")
         .then(response => response.json())
-        .then(winkels => {
-          winkels.forEach(winkel => {
-            const gd = winkel.google_data || {};
-            const lat = gd.latitude;
-            const lng = gd.longitude;
-
-            if (typeof lat !== 'number' || typeof lng !== 'number') return;
-
-            const marker = new google.maps.Marker({
-              position: { lat, lng },
-              map,
-              title: winkel.winkelnaam,
-              icon: {
-                url: "https://www.pihappy.me/picoin.png",
-                scaledSize: new google.maps.Size(60, 60)
-              }
-            });
-
-            const info = new google.maps.InfoWindow({
-              content: `
-                <h3>${winkel.winkelnaam || "Naam onbekend"}</h3>
-                <p>${gd.adres || "Adres onbekend"}</p>
-                <p>Categorie: ${winkel.categorie || "Onbekend"}</p>
-                <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank">Route plannen</a>
-              `
-            });
-
-            marker.addListener("click", () => info.open(map, marker));
-
-            markers.push({ categorie: winkel.categorie, marker });
+        .then(categories => {
+          const filterSelect = document.getElementById('category-filter');
+          // Clear existing options except the first one ("Alle")
+          while (filterSelect.options.length > 1) {
+            filterSelect.remove(1);
+          }
+          // Add new options from fetched categories
+          categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category;
+            // Capitalize first letter for display
+            option.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+            filterSelect.appendChild(option);
           });
         })
-        .catch(error => console.error("Fout bij laden van winkels:", error));
+        .catch(error => console.error("Fout bij laden van categorieën:", error));
     }
+
+    function fetchShops() {
+        // Clear existing markers before fetching new ones
+        markers.forEach(entry => entry.marker.setMap(null));
+        markers = [];
+
+        fetch("/api/shops")
+          .then(response => response.json())
+          .then(winkels => {
+            winkels.forEach(winkel => {
+              // Read coordinates directly from the winkel object
+              const lat = winkel.latitude;
+              const lng = winkel.longitude;
+
+              // Skip if coordinates are invalid
+              if (typeof lat !== 'number' || typeof lng !== 'number') {
+                  console.warn(`Skipping shop "${winkel.name || winkel._id}" due to invalid coordinates:`, lat, lng);
+                  return;
+              }
+
+              const marker = new google.maps.Marker({
+                position: { lat, lng },
+                map,
+                title: winkel.name, // Use correct field name
+                icon: {
+                  url: "https://www.pihappy.me/picoin.png",
+                  scaledSize: new google.maps.Size(60, 60)
+                }
+              });
+
+              const info = new google.maps.InfoWindow({
+                content: `
+                  <h3>${winkel.name || "Naam onbekend"}</h3>
+                  <p>${winkel.location || "Adres onbekend"}</p>
+                  <p>Categorie: ${winkel.category || "Onbekend"}</p>
+                  <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank">Route plannen</a>
+                `
+              });
+
+              marker.addListener("click", () => info.open(map, marker));
+
+              markers.push({ categorie: winkel.category, marker }); // Use correct field name
+            });
+            // Apply initial filter state after markers are loaded
+            document.getElementById('category-filter').dispatchEvent(new Event('change'));
+          })
+          .catch(error => console.error("Fout bij laden van winkels:", error));
+      }
 
     document.getElementById('category-filter').addEventListener('change', function (e) {
       const selectedCategory = e.target.value;
       markers.forEach(entry => {
-        const visible = selectedCategory === 'all' || entry.categorie === selectedCategory;
+        const visible = selectedCategory === 'all' || entry.categorie === selectedCategory; // Correct field name is 'categorie' from markers.push
         entry.marker.setVisible(visible);
       });
     });

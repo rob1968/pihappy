@@ -1,4 +1,5 @@
 from flask import request, jsonify, Blueprint, current_app
+from datetime import datetime # Import datetime
 # Delay importing db to avoid circular import
 # from app import db
 import logging
@@ -18,9 +19,9 @@ def format_shop_for_frontend(doc):
     # Rename fields and ensure correct types
     formatted_doc = {
         '_id': doc['_id'],
-        'name': doc.get('Name'), # Use 'Name' from DB
+        'name': doc.get('name', doc.get('Name')), # Prioritize lowercase 'name'
         'category': doc.get('Category'), # Assuming 'Category' might exist
-        'location': doc.get('Location'), # Use 'Location' from DB
+        'location': doc.get('location', doc.get('Location')), # Prioritize lowercase 'location'
         'type': doc.get('Type'), # Use 'Type' from DB
         'detail_url': doc.get('Detail URL'),
         'image_url': doc.get('Image URL'),
@@ -28,24 +29,24 @@ def format_shop_for_frontend(doc):
         'longitude': None # Default to None
     }
 
-    # Safely convert Latitude and Longitude strings to float
+    # Safely convert latitude/Latitude to float, prioritizing lowercase
+    lat_val = doc.get('latitude', doc.get('Latitude')) # Check lowercase first
     try:
-        lat_str = doc.get('Latitude')
-        if lat_str is not None:
-            formatted_doc['latitude'] = float(lat_str)
+        if lat_val is not None:
+            formatted_doc['latitude'] = float(lat_val)
     except (ValueError, TypeError):
-        logging.warning(f"Could not convert Latitude '{lat_str}' to float for shop ID {doc['_id']}")
+        logging.warning(f"Could not convert latitude '{lat_val}' to float for shop ID {doc['_id']}")
 
+    # Safely convert longitude/Longitude to float, prioritizing lowercase
+    lon_val = doc.get('longitude', doc.get('Longitude')) # Check lowercase first
     try:
-        lon_str = doc.get('Longitude')
-        if lon_str is not None:
-            formatted_doc['longitude'] = float(lon_str)
+        if lon_val is not None:
+            formatted_doc['longitude'] = float(lon_val)
     except (ValueError, TypeError):
-        logging.warning(f"Could not convert Longitude '{lon_str}' to float for shop ID {doc['_id']}")
+        logging.warning(f"Could not convert longitude '{lon_val}' to float for shop ID {doc['_id']}")
 
-    # Add category if it wasn't found under 'Category' but exists under 'category' (lowercase)
-    if formatted_doc['category'] is None:
-        formatted_doc['category'] = doc.get('category')
+    # Ensure category uses lowercase 'category' primarily
+    formatted_doc['category'] = doc.get('category', doc.get('Category')) # Prioritize lowercase 'category'
 
     return formatted_doc
 
@@ -90,26 +91,55 @@ def get_shops():
 def add_shop():
     # Import db here, inside the function
     from app import db
-    logging.debug("Received request at /shops endpoint")
+    logging.debug("Received POST request at /shops endpoint")
     data = request.json
     if not data:
+        logging.warning("POST /shops request received no JSON data.")
         return jsonify({"error": "No data provided"}), 400
 
-    # Automatisch hoogste ID bepalen
-    last_shop = db.shops.find_one(sort=[("id", -1)])
-    new_id = (last_shop["id"] + 1) if last_shop else 1
-
-    shop = {
-        "id": new_id,
+    # Construct the shop document directly from request data
+    # Let MongoDB handle the _id generation
+    shop_to_insert = {
+        # Use lowercase keys consistent with frontend form and GET response formatting
         "name": data.get("name"),
         "category": data.get("category"),
         "location": data.get("location"),
-        "type": data.get("type")
+        "latitude": data.get("latitude"),   # Get latitude from request
+        "longitude": data.get("longitude"), # Get longitude from request
+        "type": data.get("type"),
+        "timestamp": datetime.utcnow(), # Add current UTC timestamp
+        # Add any other fields you might want to store from the form
     }
 
-    db.shops.insert_one(shop)
-    logging.debug(f"New shop created: {shop}")
-    return jsonify(shop), 201  # ✅ Stuurt het ingevoerde shopobject terug
+    # Validate required fields, including coordinates now
+    if not all([shop_to_insert.get("name"), shop_to_insert.get("location"),
+                shop_to_insert.get("latitude") is not None, shop_to_insert.get("longitude") is not None]):
+         logging.warning("POST /shops request missing required fields (name, location, latitude, or longitude).")
+         return jsonify({"error": "Missing required fields: name, location, latitude, and longitude"}), 400
+
+    try:
+        # Insert the document
+        insert_result = db.shops.insert_one(shop_to_insert)
+        inserted_id = insert_result.inserted_id
+        logging.info(f"New shop inserted with _id: {inserted_id}")
+
+        # Fetch the newly inserted document to return it in the response
+        newly_inserted_shop = db.shops.find_one({"_id": inserted_id})
+
+        if newly_inserted_shop:
+            # Format it for the frontend (convert _id, etc.)
+            # Reuse the helper function defined for the GET request
+            formatted_shop = format_shop_for_frontend(newly_inserted_shop)
+            return jsonify(formatted_shop), 201
+        else:
+            # This case is unlikely if insert_one succeeded, but handle defensively
+            logging.error(f"Failed to retrieve shop immediately after insertion with _id: {inserted_id}")
+            # Return a success status but indicate retrieval issue
+            return jsonify({"message": "Shop added but failed to retrieve confirmation", "id": str(inserted_id)}), 207 # Multi-Status
+
+    except Exception as e:
+        logging.error(f"Error inserting shop into database: {e}", exc_info=True)
+        return jsonify({"error": "Database insertion failed"}), 500
 
 # Example route (ensure at least one route exists)
 @shop_bp.route('/shop')
@@ -117,3 +147,41 @@ def shop_home():
     return "Welcome to the Shop!"
 
 # Removed the standalone app run block, as this is a blueprint
+
+@shop_bp.route("/categories", methods=["GET"])
+def get_categories():
+    # Import db here, inside the function
+    from app import db
+    try:
+        logging.debug("Received GET request at /categories endpoint")
+        # Fetch distinct category names from the 'shops_category' collection
+        # Fetch distinct descriptions from the 'shops_category' collection.
+        categories = []
+        collection_names = db.list_collection_names()
+        logging.debug(f"Available collections: {collection_names}")
+
+        if 'shops_category' in collection_names:
+            logging.info("Attempting to fetch distinct 'description' values from 'shops_category' collection.")
+            categories = db.shops_category.distinct("description")
+            logging.debug(f"Distinct 'description' values found in 'shops_category': {categories}")
+        else:
+            logging.warning("Collection 'shops_category' not found.")
+
+        # Fallback: If no descriptions found or collection missing, try 'category' from 'shops'
+        if not categories:
+            logging.warning("No descriptions found in 'shops_category' or collection missing. Fetching distinct 'category' values from 'shops' collection as fallback.")
+            if 'shops' in collection_names:
+                 categories = db.shops.distinct("category")
+                 logging.debug(f"Distinct 'category' values from 'shops' (fallback): {categories}")
+            else:
+                 logging.error("Fallback failed: 'shops' collection also not found.")
+                 categories = []
+
+        # Filter out any None or empty string values
+        categories = [cat for cat in categories if cat]
+
+        logging.debug(f"Found categories: {categories}")
+        return jsonify(sorted(categories)), 200 # Return sorted list
+    except Exception as e:
+        logging.error(f"Error fetching categories: {e}", exc_info=True)
+        return jsonify({"error": "Failed to fetch categories"}), 500
