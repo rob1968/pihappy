@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta name="description" content="="PiHappy: Your personal AI chat, mood tracker and community app">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PiHappy</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        .container {
+            max-width: 500px;
+            margin: auto;
+        }
+        .button-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        button {
+            flex: 1 1 calc(50% - 10px);
+            padding: 12px;
+            font-size: 18px;
+            border: none;
+            cursor: pointer;
+            border-radius: 8px;
+            background-color: #f0f0f0;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #ddd;
+        }
+        @media (max-width: 480px) {
+            .button-container {
+                flex-direction: column;
+            }
+            button {
+                flex: 1 1 100%;
+            }
+        }
+        .chat-box, .input-box {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 300px;
+            width: 100%;
+            max-width: 500px;
+            overflow-y: scroll;
+            text-align: left;
+            margin-top: 20px;
+        }
+        input[type="text"] {
+            padding: 10px;
+            width: 80%;
+            max-width: 400px;
+            margin-top: 10px;
+        }
+        .highlight {
+            background-color: yellow;
+            font-weight: bold;
+}
+        .datum-kop {
+          font-weight: bold;
+          margin-top: 15px;
+          background: #f0f0f0;
+          padding: 5px;
+          border-radius: 4px;
+}
+
+.mood-columns {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
+.mood-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.mood-column button {
+    padding: 10px 15px;
+    font-size: 16px;
+    border: none;
+    border-radius: 8px;
+    background-color: #f0f0f0;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    min-width: 130px;
+}
+
+.mood-column button:hover {
+    background-color: #ddd;
+}
+
+.groep-label {
+    font-weight: bold;
+    margin-bottom: 5px;
+    text-align: center;
+}
+
+
+.ai-feedback-box {
+    background-color: #fff3cd;
+    border-left: 6px solid #ffeeba;
+    padding: 20px 20px 20px 24px; /* More even padding with emphasis on left */
+    margin-top: 10px;
+    border-radius: 8px;
+    color: #856404;
+    text-align: left;
+    white-space: pre-line;
+    font-size: 17px;
+    line-height: 1.6;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1); /* subtle shadow for depth */
+    max-width: 100%;
+    word-wrap: break-word;
+}
+
+
+#toggleFeedbackButton {
+    background-color: #f8f9fa;
+    border: 1px solid #ced4da;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-bottom: 5px;
+    transition: background-color 0.3s ease;
+}
+#toggleFeedbackButton:hover {
+    background-color: #e2e6ea;
+}
+
+
+
+        .message {
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .user { background-color: #d1ecf1; text-align: right; }
+        .assistant { background-color: #e2e3e5; text-align: left; }
+        .error { color: red; font-weight: bold; }
+        .community-message { background-color: #f9f9f9; padding: 8px; border-left: 4px solid #007bff; margin: 5px 0; }
+        .ai-response { background-color: #fff8dc; border-left: 4px solid #ff9900; padding: 8px; margin: 5px 0; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div style="margin-top: 10px; padding: 10px; background-color: {% if category == 'warning' %}#fff3cd{% elif category == 'success' %}#d4edda{% elif category == 'danger' %}#f8d7da{% else %}#cce5ff{% endif %}; border-left: 6px solid {% if category == 'warning' %}#ffecb5{% elif category == 'success' %}#c3e6cb{% elif category == 'danger' %}#f5c6cb{% else %}#b8daff{% endif %}; color: #000;">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<h1>PiHappy</h1>
+
+{% if laatste_stemming %}
+    <div style="font-size: 32px; font-weight: bold; margin-top: 20px; color: #28a745;">
+        Your feeling today is: {{ laatste_stemming }}
+    </div>
+{% endif %}
+
+{% if stemming_toegestaan %}
+<form action="/nieuw" method="POST">
+    <label>How are you feeling right now?</label>
+
+     <div class="mood-columns">
+        <!-- Positive -->
+        <div class="mood-column">
+            <div class="groep-label">😊 Positive</div>
+            <button type="submit" name="stemming" value="Happy 😊">Happy 😊</button>
+            <button type="submit" name="stemming" value="Excited 🤩">Excited 🤩</button>
+            <button type="submit" name="stemming" value="Grateful 🙏">Grateful 🙏</button>
+        </div>
+
+        <!-- Negative -->
+        <div class="mood-column">
+            <div class="groep-label">😔 Negative</div>
+            <button type="submit" name="stemming" value="Sad 😔">Sad 😔</button>
+            <button type="submit" name="stemming" value="Stressed 😰">Stressed 😰</button>
+            <button type="submit" name="stemming" value="Sick 🤒">Sick 🤒</button>
+        </div>
+
+        <!-- Neutral -->
+        <div class="mood-column">
+            <div class="groep-label">😐 Neutral</div>
+            <button type="submit" name="stemming" value="Neutral 😐">Neutral 😐</button>
+            <button type="submit" name="stemming" value="Surprised 😲">Surprised 😲</button>
+            <button type="submit" name="stemming" value="Reflective 🤔">Reflective 🤔</button>
+        </div>
+    </div>
+</form>
+
+{% endif %}
+
+
+{% if eigen_feedback %}
+    <div id="aiFeedbackBox" class="ai-feedback-box" aria-hidden="false" style="display: block;">
+        {{ eigen_feedback[-1]["feedback"] | safe }}
+    </div>
+    <button id="toggleFeedbackButton" aria-expanded="true" aria-controls="aiFeedbackBox">
+        👆 Hide feedback
+    </button>
+{% else %}
+    <div id="aiFeedbackBox" class="ai-feedback-box" style="display: none;"></div>
+{% endif %}
+
+    <button id="toggleSoundButton">🔊 Sound: On</button>
+
+
+    <!-- Filters -->
+
+
+    <input type="text" id="searchInput" placeholder="Search in messages.." oninput="filterBerichten()">
+
+    <div id="chatBox" class="chat-box"></div>
+
+    <input type="text" id="chatInput" placeholder="Ask a question...">
+    <button id="sendButton">Send</button>
+
+    <h2>🌍 Community Input</h2>
+    <input type="text" id="inputText" placeholder="Share your idea or suggestion (max 10 words)">
+    <button id="sendInputButton">Send</button>
+    <button onclick="analyseerCommunity()">🔍 Analyze Community Input</button>
+
+    <h2>🤖 AI Analyse Community</h2>
+    <div id="analyse_resultaat"></div>
+
+    <h2>📊 Community Statistics</h2>
+    <div id="statistieken_resultaat">
+        <p><strong>🔍 Popular Topics:</strong> <span id="populaireThemas">Laden...</span></p>
+        <p><strong>🏆 Contributors:</strong> <span id="topBijdragers">Laden...</span></p>
+    </div>
+    <button onclick="haalCommunityStatistiekenOp()">🔄 Refresh Stats</button>
+</div>
+
+<script>
+
+
+function voegBerichtToeMetDatum(role, content, tijd) {
+    if (!content) return;
+
+    const chatBox = document.getElementById("chatBox");
+    const messageDiv = document.createElement("div");
+    messageDiv.classList.add("message", role);
+
+    const datum = new Date(tijd);
+    const isoDate = datum.toISOString().split("T")[0];
+    const tijdTekst = datum.toLocaleTimeString('nl-NL');
+
+    messageDiv.setAttribute("data-date", isoDate);
+    messageDiv.setAttribute("data-content", content.toLowerCase());
+
+    messageDiv.innerHTML = `
+        <div style="font-size: 0.9em; color: gray;">🕒 ${tijdTekst}</div>
+        <strong>${role === "user" ? "You" : role === "assistant" ? "Assistent" : "⚠️ Fout"}:</strong> 
+        <span class="bericht-tekst">${content}</span>
+    `;
+
+    chatBox.appendChild(messageDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+
+
+function formatDatumNederlands(datumString) {
+    const datum = new Date(datumString);
+    return datum.toLocaleDateString("nl-NL", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+
+let aiIsBezig = false;
+
+function sendMessage() {
+    if (aiIsBezig) return;
+
+    const vraagInput = document.getElementById("chatInput");
+    const sendButton = document.getElementById("sendButton");
+    const vraag = vraagInput.value.trim();
+
+    if (!vraag) return;
+
+    // Zet AI status op 'bezig' en disable invoer
+    aiIsBezig = true;
+    vraagInput.disabled = true;
+    sendButton.disabled = true;
+
+    voegBerichtToe("user", vraag);
+
+    fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vraag: vraag })
+    })
+    .then(response => response.json())
+    .then(data => {
+        voegBerichtToe("assistant", data.antwoord);
+        speelTekstAfMetSpraak(data.antwoord);
+
+        vraagInput.value = "";
+    })
+    .catch(error => {
+        voegBerichtToe("error", "⚠️ Er is een fout opgetreden: " + error);
+    })
+    .finally(() => {
+        aiIsBezig = false;
+        vraagInput.disabled = false;
+        sendButton.disabled = false;
+        vraagInput.focus();
+    });
+}
+
+
+function voegBerichtToe(role, content) {
+    const chatBox = document.getElementById("chatBox");
+    const messageDiv = document.createElement("div");
+    messageDiv.classList.add("message", role);
+
+    const now = new Date();
+    const tijdTekst = now.toLocaleTimeString('nl-NL');
+    const isoDate = now.toISOString().split("T")[0];
+    const contentLower = content.toLowerCase();
+
+    messageDiv.setAttribute("data-date", isoDate);
+    messageDiv.setAttribute("data-content", contentLower);
+
+    messageDiv.innerHTML = `
+        <div style="font-size: 0.9em; color: gray;">🕒 ${tijdTekst}</div>
+        <strong>${role === "user" ? "You" : role === "assistant" ? "AI" : "⚠️ Fout"}:</strong> 
+        <span class="bericht-tekst">${content}</span>
+    `;
+
+    chatBox.appendChild(messageDiv);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function haalChatGeschiedenisOp() {
+    fetch("/chat_geschiedenis")
+    .then(response => response.json())
+    .then(data => {
+        const chatBox = document.getElementById("chatBox");
+        chatBox.innerHTML = "";
+
+        let vorigeDatum = "";
+
+        data.geschiedenis.forEach(bericht => {
+          const datum = new Date(bericht.tijd).toISOString().split("T")[0];
+
+            if (datum !== vorigeDatum) {
+                // Nieuwe dag → voeg datumkop toe
+                const datumKop = document.createElement("div");
+                datumKop.classList.add("datum-kop");
+                datumKop.textContent = formatDatumNederlands(datum);
+                chatBox.appendChild(datumKop);
+                vorigeDatum = datum;
+            }
+
+             voegBerichtToeMetDatum(bericht.role, bericht.content, bericht.tijd);
+        });
+    })
+    .catch(error => console.error("Fout bij laden chatgeschiedenis:", error));
+}
+
+function filterBerichten() {
+    const zoekwoord = document.getElementById("searchInput").value.toLowerCase();
+    const berichten = document.querySelectorAll("#chatBox .message");
+
+    berichten.forEach(bericht => {
+        const content = bericht.getAttribute("data-content") || "";
+
+        const matchTekst = !zoekwoord || content.includes(zoekwoord);
+
+        if (matchTekst) {
+            bericht.style.display = "block";
+
+            // Highlight zoekterm
+            const tekstElement = bericht.querySelector(".bericht-tekst");
+            if (zoekwoord && tekstElement) {
+                const regex = new RegExp(`(${zoekwoord})`, "gi");
+                tekstElement.innerHTML = tekstElement.textContent.replace(regex, `<span class="highlight">$1</span>`);
+            }
+        } else {
+            bericht.style.display = "none";
+        }
+
+        // Reset highlight als zoekveld leeg is
+        if (!zoekwoord && bericht.querySelector(".bericht-tekst")) {
+            const tekstElement = bericht.querySelector(".bericht-tekst");
+            tekstElement.innerHTML = tekstElement.textContent;
+        }
+    });
+}
+
+
+function speelTekstAfMetSpraak(tekst) {
+            if (!geluidAan) return;
+            fetch("https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM", {
+                method: "POST",
+                headers: {
+                    "xi-api-key": "sk_a6a191995e13e84ab31033eb635b8bb5be97bcb6efea28e1",
+                    "Content-Type": "application/json",
+                    "Accept": "audio/mpeg"
+                },
+                body: JSON.stringify({
+                    text: tekst,
+                    model_id: "eleven_monolingual_v1",
+                    voice_settings: {
+                        stability: 0.5,
+                        similarity_boost: 0.75
+                    }
+                })
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const audioURL = URL.createObjectURL(blob);
+                const audio = new Audio(audioURL);
+                audio.play();
+            })
+            .catch(error => {
+                console.error("🎤 Fout bij spraakgeneratie:", error);
+            });
+        }
+
+
+
+function sendInput() {
+    const input = document.getElementById("inputText").value.trim();
+    if (!input) return;
+
+    if (input.split(/\s+/).length > 10) {
+        alert("⚠️ Maximaal 10 woorden toegestaan.");
+        return;
+    }
+
+    fetch("/community_input/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input: input })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === "success") {
+            haalCommunityInputOp();
+            document.getElementById("inputText").value = "";
+        }
+    });
+}
+
+function haalCommunityInputOp() {
+    fetch("/community_input")
+    .then(response => response.json())
+    .then(data => {
+        const inputBox = document.getElementById("inputBox");
+        inputBox.innerHTML = "";
+        data.forEach(entry => {
+            const div = document.createElement("div");
+            div.classList.add("community-message");
+            div.innerHTML = `<strong>${entry.gebruiker}:</strong> ${entry.input}`;
+            inputBox.appendChild(div);
+        });
+    });
+}
+
+function analyseerCommunity() {
+    fetch("/community_input/analyse")
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById("analyse_resultaat").innerHTML = `<strong>Assistent:</strong> ${data.ai_feedback}`;
+    });
+}
+
+function haalCommunityStatistiekenOp() {
+    fetch("/community_input/statistieken")
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === "success") {
+            document.getElementById("populaireThemas").textContent = data.populaire_themas.join(", ");
+            document.getElementById("topBijdragers").innerHTML = data.top_bijdragers.map(b => `${b.naam} (${b.aantal}x)`).join(", ");
+        } else {
+            document.getElementById("statistieken_resultaat").innerHTML = `<p style="color:red;">⚠️ ${data.message}</p>`;
+        }
+    })
+    .catch(error => {
+        document.getElementById("statistieken_resultaat").innerHTML = `<p style="color:red;">⚠️ Er is een fout opgetreden bij het laden van de statistieken.</p>`;
+    });
+}
+
+       document.addEventListener("DOMContentLoaded", function () {
+            const feedbackBox = document.getElementById("aiFeedbackBox");
+            const toggleButton = document.getElementById("toggleFeedbackButton");
+
+            // Spreek tekst bij laden
+            if (feedbackBox && feedbackBox.innerText.trim() && geluidAan) {
+                speelTekstAfMetSpraak(feedbackBox.innerText.trim());
+            }
+
+            // Toggle knop met spraak
+            toggleButton.addEventListener("click", () => {
+                const zichtbaar = feedbackBox.style.display === "block";
+                const wordtZichtbaar = !zichtbaar;
+
+                feedbackBox.style.display = wordtZichtbaar ? "block" : "none";
+                toggleButton.innerText = wordtZichtbaar ? "👆 Verberg feedback" : "👇 Toon feedback";
+                toggleButton.setAttribute("aria-expanded", wordtZichtbaar);
+                feedbackBox.setAttribute("aria-hidden", !wordtZichtbaar);
+
+                if (wordtZichtbaar && geluidAan) {
+                    const tekst = feedbackBox.innerText.trim();
+                    if (tekst) speelTekstAfMetSpraak(tekst);
+                }
+            });
+// Vraag versturen via knop
+const sendButton = document.getElementById("sendButton");
+if (sendButton) {
+    sendButton.addEventListener("click", sendMessage);
+}
+
+// Enter key op inputveld
+const chatInput = document.getElementById("chatInput");
+if (chatInput) {
+    chatInput.addEventListener("keypress", function(event) {
+        if (event.key === "Enter" && !aiIsBezig) {
+            event.preventDefault();
+            sendMessage();
+        }
+    });
+}
+
+// Community input versturen
+const sendInputButton = document.getElementById("sendInputButton");
+if (sendInputButton) {
+    sendInputButton.addEventListener("click", sendInput);
+}
+
+const inputText = document.getElementById("inputText");
+if (inputText) {
+    inputText.addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            sendInput();
+        }
+    });
+}
+
+    // Init
+    haalChatGeschiedenisOp();
+    haalCommunityInputOp();
+    haalCommunityStatistiekenOp();
+});
+
+
+let geluidAan = localStorage.getItem("geluidAan") === "true";
+
+document.addEventListener("DOMContentLoaded", function () {
+    document.getElementById("toggleSoundButton").textContent = geluidAan ? "🔊 Geluid: Aan" : "🔇 Geluid: Uit";
+
+    // ... andere code ...
+
+    document.getElementById("toggleSoundButton").addEventListener("click", function () {
+        geluidAan = !geluidAan;
+        localStorage.setItem("geluidAan", geluidAan);
+        this.textContent = geluidAan ? "🔊 Sound: On" : "🔇 Sound: Off";
+    });
+});
+
+
+</script>
+
+</body>
+</html>

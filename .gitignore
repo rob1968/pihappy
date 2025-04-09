@@ -1,0 +1,20 @@
+# Environment variables
+.env
+frontend/.env
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Flask session files
+flask_session/
+
+# Node.js dependencies
+frontend/node_modules/
+
+# Service account keys
+*.json
+
+# OS generated files
+.DS_Store
+Thumbs.db
