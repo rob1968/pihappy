@@ -46,7 +46,9 @@ const AuthForm = () => {
         });
         const result = await response.json();
         if (response.ok) {
-          navigate("/"); // Redirect on successful login
+          // Instead of client-side navigation, force a full page load to '/'
+          // This ensures the HomePageWrapper re-evaluates auth status with the new cookie.
+          window.location.href = '/';
         } else {
           alert(`Fout bij inloggen: ${result.message}`);
         }

@@ -306,9 +306,11 @@ const MainPage = () => {
 
             {/* Navigation Menu */}
             <nav style={{ marginBottom: '20px', textAlign: 'center', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
-                <Link to="/" style={{ marginRight: '15px', textDecoration: 'none', color: '#5e459c', fontWeight: 'bold' }}>Home / Mood</Link> {/* Bold current page */}
-                <Link to="/community" style={{ textDecoration: 'none', color: '#5e459c', fontWeight: '500' }}>Community</Link>
-                {/* Add other links as needed */}
+                <Link to="/" style={{ marginRight: '15px', textDecoration: 'none', color: '#5e459c', fontWeight: '500' }}>Home / Mood</Link>
+                <Link to="/community" style={{ marginRight: '15px', textDecoration: 'none', color: '#5e459c', fontWeight: '500' }}>Community</Link>
+                <Link to="/pilocations" style={{ marginRight: '15px', textDecoration: 'none', color: '#5e459c', fontWeight: '500' }}>Map</Link>
+                <Link to="/profile" style={{ marginRight: '15px', textDecoration: 'none', color: '#5e459c', fontWeight: '500' }}>Profile</Link>
+                {/* Removed logout link */}
             </nav>
 
             <h1>PiHappy - Mood & Chat</h1> {/* Updated heading */}

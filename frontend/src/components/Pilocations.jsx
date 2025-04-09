@@ -310,14 +310,18 @@ function Pilocations() {
               >
                 <div className="info-window-content">
                   <h3>{selectedWinkel.name || "Naam onbekend"}</h3> {/* Use name */}
-                  <p>{selectedWinkel.location || "Locatie onbekend"}</p> {/* Use location */}
-                  <p>Categorie: {selectedWinkel.category || "Onbekend"}</p> {/* Use category */}
+                  <p>{selectedWinkel.location || "Locatie onbekend"}</p>
+                  <p>Categorie: {selectedWinkel.category || "Onbekend"}</p>
+                  {/* Add link to user profile if userId exists */}
+                  {selectedWinkel.userId && (
+                    <p>Added by: <a href={`/profile/${selectedWinkel.userId}`} target="_blank" rel="noopener noreferrer">View Profile</a></p>
+                  )}
                   <a
                     href={`https://www.google.com/maps/dir/?api=1&destination=${selectedWinkel.latitude},${selectedWinkel.longitude}`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    Route plannen (vereist coördinaten)
+                    Route plannen
                   </a>
                 </div>
               </InfoWindow>

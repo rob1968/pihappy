@@ -62,7 +62,7 @@ def find_shop(shop_name_to_find):
             logger.info("MongoDB connection closed.")
 
 if __name__ == "__main__":
-    search_name = "drop" # The name to search for
+    search_name = "flop" # The name to search for
     logger.info(f"Starting search for shop named '{search_name}'...")
     find_shop(search_name)
     logger.info("Search process finished.")

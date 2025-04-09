@@ -1,4 +1,4 @@
-from flask import request, jsonify, Blueprint, current_app
+from flask import request, jsonify, Blueprint, current_app, session # Add session here
 from datetime import datetime # Import datetime
 # Delay importing db to avoid circular import
 # from app import db
@@ -88,10 +88,21 @@ def get_shops():
 
 @shop_bp.route("/shops", methods=["POST"])
 @shop_bp.route("/shops", methods=["POST"])
+# Corrected import location
 def add_shop():
     # Import db here, inside the function
     from app import db
     logging.debug("Received POST request at /shops endpoint")
+
+    # Check if user is logged in
+    if 'gebruiker' not in session or 'id' not in session['gebruiker']:
+        logging.warning("Attempt to add shop while not logged in.")
+        return jsonify({"error": "Authentication required"}), 401
+
+    user_id = session['gebruiker']['id']
+    logging.debug(f"Shop add request by user ID: {user_id}")
+
+    # Removed duplicate user check block
     data = request.json
     if not data:
         logging.warning("POST /shops request received no JSON data.")
@@ -108,7 +119,7 @@ def add_shop():
         "longitude": data.get("longitude"), # Get longitude from request
         "type": data.get("type"),
         "timestamp": datetime.utcnow(), # Add current UTC timestamp
-        # Add any other fields you might want to store from the form
+        "userId": ObjectId(user_id) # Store the owner's ID as ObjectId
     }
 
     # Validate required fields, including coordinates now
@@ -185,3 +196,125 @@ def get_categories():
     except Exception as e:
         logging.error(f"Error fetching categories: {e}", exc_info=True)
         return jsonify({"error": "Failed to fetch categories"}), 500
+
+
+@shop_bp.route("/profile/shops", methods=["GET"])
+def get_user_shops():
+    if 'gebruiker' not in session or 'id' not in session['gebruiker']:
+        return jsonify({"error": "Authentication required"}), 401
+
+    user_id = session['gebruiker']['id']
+    try:
+        user_object_id = ObjectId(user_id)
+    except Exception:
+        return jsonify({"error": "Invalid user ID format"}), 400
+
+    logging.debug(f"Fetching shops for user ID: {user_id}")
+
+    try:
+        # Import db here, inside the function
+        from app import db
+        # Find shops where the 'userId' field matches the logged-in user's ObjectId
+        user_shops_cursor = db.shops.find({"userId": user_object_id})
+        user_shops_list = list(user_shops_cursor)
+
+        formatted_shops = []
+        for shop in user_shops_list:
+             try:
+                 # Reuse the existing formatting function
+                 formatted_shop = format_shop_for_frontend(shop)
+                 # Ensure coordinates are valid before adding
+                 if formatted_shop.get('latitude') is not None and formatted_shop.get('longitude') is not None:
+                     formatted_shops.append(formatted_shop)
+                 else:
+                     logging.warning(f"Skipping user's shop ID {shop.get('_id', 'N/A')} due to invalid/missing coordinates after formatting.")
+             except Exception as doc_error:
+                 shop_id = shop.get('_id', 'N/A')
+                 logging.error(f"Error processing user's shop document ID {shop_id}: {doc_error}", exc_info=False)
+
+        logging.debug(f"Found {len(formatted_shops)} shops for user {user_id}")
+        return jsonify(formatted_shops), 200
+
+    except Exception as e:
+        logging.error(f"Error fetching shops for user {user_id}: {e}", exc_info=True)
+        return jsonify({"error": "Failed to fetch user shops"}), 500
+
+
+@shop_bp.route("/shops/<shop_id>", methods=["PUT"])
+def update_shop(shop_id):
+    if 'gebruiker' not in session or 'id' not in session['gebruiker']:
+        return jsonify({"error": "Authentication required"}), 401
+
+    user_id = session['gebruiker']['id']
+    try:
+        user_object_id = ObjectId(user_id)
+        shop_object_id = ObjectId(shop_id)
+    except Exception as e:
+        logging.error(f"Invalid ID format provided: {e}")
+        return jsonify({"error": "Invalid ID format for user or shop"}), 400
+
+    data = request.json
+    if not data:
+        return jsonify({"error": "No data provided"}), 400
+
+    logging.debug(f"Attempting to update shop {shop_id} by user {user_id}")
+
+    try:
+        # Import db here, inside the function
+        from app import db
+
+        # First, verify the shop exists and belongs to the current user
+        shop_to_update = db.shops.find_one({"_id": shop_object_id, "userId": user_object_id})
+
+        if not shop_to_update:
+            # Check if the shop exists at all but belongs to someone else
+            shop_exists = db.shops.find_one({"_id": shop_object_id})
+            if shop_exists:
+                logging.warning(f"User {user_id} attempted to update shop {shop_id} owned by another user ({shop_exists.get('userId')})")
+                return jsonify({"error": "Forbidden: You do not own this shop"}), 403
+            else:
+                logging.warning(f"Shop {shop_id} not found for update attempt by user {user_id}")
+                return jsonify({"error": "Shop not found"}), 404
+
+        # Define fields allowed for update
+        allowed_updates = {}
+        if "name" in data:
+            allowed_updates["name"] = data["name"]
+        if "category" in data:
+            allowed_updates["category"] = data["category"]
+        if "location" in data:
+            allowed_updates["location"] = data["location"]
+        if "latitude" in data:
+            allowed_updates["latitude"] = data["latitude"]
+        if "longitude" in data:
+            allowed_updates["longitude"] = data["longitude"]
+        if "type" in data:
+            allowed_updates["type"] = data["type"]
+        # Add other updatable fields as needed
+
+        if not allowed_updates:
+            return jsonify({"error": "No updatable fields provided"}), 400
+
+        # Add a timestamp for the update
+        allowed_updates["last_updated"] = datetime.utcnow()
+
+        # Perform the update
+        update_result = db.shops.update_one(
+            {"_id": shop_object_id}, # Filter by shop ID (ownership already verified)
+            {"$set": allowed_updates}
+        )
+
+        if update_result.modified_count == 0 and update_result.matched_count > 0:
+             # Matched but nothing changed (e.g., same data sent)
+             logging.info(f"Shop {shop_id} update requested by user {user_id}, but data was identical.")
+             # Still return success, maybe with a note? Or just the updated doc.
+
+        # Fetch the updated document to return
+        updated_shop_doc = db.shops.find_one({"_id": shop_object_id})
+        formatted_shop = format_shop_for_frontend(updated_shop_doc) # Reuse formatter
+
+        return jsonify({"message": "Shop updated successfully", "shop": formatted_shop}), 200
+
+    except Exception as e:
+        logging.error(f"Error updating shop {shop_id} for user {user_id}: {e}", exc_info=True)
+        return jsonify({"error": "Failed to update shop"}), 500

@@ -1,0 +1,25 @@
+.profile-container {
+  max-width: 900px;
+  margin: 20px auto;
+  padding: 20px;
+}
+
+.profile-container .card {
+  margin-bottom: 20px;
+}
+
+.profile-container .error {
+  color: #dc3545; /* Bootstrap danger color */
+  margin-bottom: 15px;
+  padding: 10px;
+  border: 1px solid #f5c6cb; /* Bootstrap danger border color */
+  background-color: #f8d7da; /* Bootstrap danger background color */
+  border-radius: 0.25rem;
+}
+
+.list-group-item {
+    border: 1px solid rgba(0,0,0,.125);
+    border-radius: .25rem;
+}
+
+/* Add more specific styles as needed */
