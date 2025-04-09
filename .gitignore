@@ -10,8 +10,8 @@ __pycache__/
 flask_session/
 
 # Node.js dependencies
+node_modules/
 frontend/node_modules/
-
 # Service account keys
 *.json
 
