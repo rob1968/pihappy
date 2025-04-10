@@ -24,7 +24,7 @@ const CommunityPage = () => {
         console.log("Community input submitted:", trimmedInput);
 
         try {
-            const response = await fetch('/community_input/send', {
+            const response = await fetch('/api/community_input/send', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -57,7 +57,7 @@ const CommunityPage = () => {
         setAnalyseResultaat("⏳ Analyzing...");
 
         try {
-            const response = await fetch('/community_input/analyse', {
+            const response = await fetch('/api/community_input/analyse', {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
@@ -87,7 +87,7 @@ const CommunityPage = () => {
         setTopBijdragers("⏳ Loading...");
 
         try {
-            const response = await fetch('/community_input/statistieken', {
+            const response = await fetch('/api/community_input/statistieken', {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',

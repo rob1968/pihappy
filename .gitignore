@@ -23,3 +23,6 @@ Thumbs.db
 migrate_shops_to_winkels.py
 empty_winkels_collection.py
 rename_location_field.py
+
+# Generated media
+blueprints/static/podcasts/
