@@ -299,10 +299,15 @@ def update_profile(user_id=None):
         if "land" in allowed_updates and session.get('gebruiker', {}).get('land') != allowed_updates["land"]:
             session['gebruiker']['land'] = allowed_updates["land"]
             session_updated = True
+        # Also update session language if country_lang was set
+        if "country_lang" in allowed_updates and session.get('lang') != allowed_updates["country_lang"]:
+             session['lang'] = allowed_updates["country_lang"]
+             session_updated = True
+             logging.info(f"User language preference updated in session to: {session['lang']}") # Log language change
 
         if session_updated:
             session.modified = True # Mark session as modified only if changed
-            logging.debug(f"Session updated for user {target_user_id_str}")
+            logging.debug(f"Session 'gebruiker' or 'lang' updated for user {target_user_id_str}")
 
         logging.info(f"Profile updated successfully for user {target_user_id_str}")
         return jsonify({"message": "Profile updated successfully", "user": profile_data}), 200

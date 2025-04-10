@@ -14,7 +14,7 @@ function ProfilePage() {
   const [editFormData, setEditFormData] = useState({ naam: '', land: '' });
   const [editError, setEditError] = useState(null); // Profile editing specific errors
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [latestFeedback, setLatestFeedback] = useState(null); // State for AI feedback
+  const [countries, setCountries] = useState([]); // State for country list
 
   // Fetch profile data
   useEffect(() => {
@@ -35,7 +35,6 @@ function ProfilePage() {
         setProfile(data);
         // Initialize edit form data when profile loads (or resets if needed)
         setEditFormData({ naam: data.naam || '', land: data.land || '' });
-        setLatestFeedback(data.latest_feedback); // Store the feedback
         setError(null);
       })
       .catch(err => {
@@ -48,7 +47,27 @@ function ProfilePage() {
       });
   }, [userId]); // Re-fetch if userId changes (or if it becomes present/absent)
 
-  // Removed useEffect hook for fetching shops
+  // Fetch countries for the dropdown
+  useEffect(() => {
+    fetch("/api/landen") // Assuming this endpoint is correct now
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to fetch countries: ${res.status}`);
+        return res.json();
+       })
+      .then((data) => {
+        if (data && data.landen) {
+          setCountries(data.landen);
+        } else {
+          console.error("Country data is not in the expected format:", data);
+          setCountries([]); // Set empty array on unexpected format
+        }
+      })
+      .catch((err) => {
+        console.error("Error fetching countries:", err);
+        setError(prevError => prevError ? `${prevError}\nFailed to load country list.` : 'Failed to load country list.'); // Append or set error
+        setCountries([]); // Set empty array on error
+      });
+  }, []); // Fetch countries only once on mount
 
   if (loadingProfile) {
     return <div className="profile-container"><p>Loading profile...</p></div>;
@@ -159,68 +178,6 @@ function ProfilePage() {
     }
   };
 
-  // --- Helper function to render feedback (copied from MainPage.jsx) ---
-  const renderFeedback = (feedbackText) => {
-      if (!feedbackText || typeof feedbackText !== 'string') {
-          return <p>{feedbackText || 'No feedback available.'}</p>; // Handle empty/non-string feedback
-      }
-
-      const lines = feedbackText.split('\n');
-      const renderedElements = [];
-      let currentOrderedListItems = [];
-      let keyCounter = 0; // For unique keys
-
-      lines.forEach((line) => {
-          const trimmedLine = line.trim();
-          const orderedListMatch = trimmedLine.match(/^(\d+)\.\s*\*\*(.*)/); // Regex for "1. ** text"
-          const bulletListMatch = trimmedLine.startsWith('- **');
-
-          // --- Close any open ordered list if the current line is not a list item ---
-          if (!orderedListMatch && !bulletListMatch && currentOrderedListItems.length > 0) {
-               renderedElements.push(
-                  <ol key={`ol-${keyCounter++}`} style={{ paddingLeft: '20px' }}>
-                      {currentOrderedListItems.map((item, itemIndex) => (
-                          <li key={itemIndex}>{item}</li>
-                      ))}
-                  </ol>
-              );
-              currentOrderedListItems = [];
-          }
-
-          // --- Process the current line ---
-          if (bulletListMatch) {
-              const content = trimmedLine.substring(4).trim(); // Remove '- ** '
-              if (content) {
-                  currentOrderedListItems.push(content);
-              }
-          } else if (orderedListMatch) {
-              const content = orderedListMatch[2].trim(); // Get text after "1. ** "
-              if (content) {
-                  currentOrderedListItems.push(content);
-              }
-          } else if (trimmedLine) {
-               if (trimmedLine.startsWith('###')) {
-                   const content = trimmedLine.substring(3).trim();
-                   renderedElements.push(<p key={`p-${keyCounter++}`}><strong>{content}</strong></p>);
-               } else {
-                   renderedElements.push(<p key={`p-${keyCounter++}`}>{trimmedLine}</p>);
-               }
-          }
-      });
-
-      // --- Process any remaining ordered list items at the end ---
-      if (currentOrderedListItems.length > 0) {
-           renderedElements.push(
-              <ol key={`ol-${keyCounter++}`} style={{ paddingLeft: '20px' }}>
-                  {currentOrderedListItems.map((item, itemIndex) => (
-                      <li key={itemIndex}>{item}</li>
-                  ))}
-              </ol>
-          );
-      }
-
-      return renderedElements.length > 0 ? renderedElements : <p>No feedback available.</p>; // Fallback if only whitespace
-  };
 
   // --- Render Profile ---
   return (
@@ -265,15 +222,27 @@ function ProfilePage() {
               <div className="mb-3 row">
                 <label htmlFor="editLand" className="col-sm-2 col-form-label"><strong>Country:</strong></label>
                 <div className="col-sm-10">
-                   {/* TODO: Consider making this a dropdown if you have a predefined list */}
-                   <input
-                     type="text"
-                     className="form-control"
+                   <select
+                     className="form-select"
                      id="editLand"
                      name="land"
-                     value={editFormData.land}
+                     value={editFormData.land} // Ensure this matches the country code (e.g., 'us', 'nl')
                      onChange={handleProfileInputChange}
-                   />
+                     required // Keep required if applicable
+                   >
+                     <option value="" disabled>Select a country...</option>
+                     {countries.length > 0 ? (
+                       countries.map((country) => (
+                         <option key={country.code} value={country.code.toLowerCase()}>
+                           {country.naam} {/* Display country name */}
+                         </option>
+                       ))
+                     ) : (
+                       <option value="" disabled>Loading countries...</option>
+                     )}
+                     {/* Optionally keep the 'Other' option if needed */}
+                     <option value="other">Other</option>
+                   </select>
                 </div>
               </div>
               {/* Add other editable fields here */}
@@ -294,15 +263,6 @@ function ProfilePage() {
           )}
         </div>
       </div>
-{/* AI Feedback Section */}
-<div className="card mb-4">
-  <div className="card-header">
-    Latest AI Feedback
-  </div>
-  <div className="card-body ai-feedback-profile"> {/* Add a class for specific styling if needed */}
-    {latestFeedback ? renderFeedback(latestFeedback) : <p>No feedback available yet.</p>}
-  </div>
-</div>
 
 {/* Removed the entire "Your Shops" section */}
 </div>
