@@ -41,7 +41,7 @@ def sla_community_input_op(data):
     db.community_input.insert_many(data)
 
 
-@community_bp.route('/api/landen', methods=['GET'])
+@community_bp.route('/landen', methods=['GET'])
 def haal_landen_op():
     try:
         landen_cursor = db.countries.find({}, {"_id": 0})  # Gebruik collectie 'countries'

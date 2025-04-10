@@ -296,7 +296,7 @@ const MainPage = () => {
 
         console.log(`Requesting TTS from backend proxy for lang '${languageCode}':`, text); // Log language
 
-        fetch("/api/tts/synthesize", { // This path is already correct
+        fetch("/api/synthesize", { // Corrected path: /api (from blueprint) + /synthesize (from route)
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
