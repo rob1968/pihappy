@@ -1,3 +1,4 @@
+/* ProfilePage.css */
 .profile-container {
   max-width: 900px;
   margin: 20px auto;
@@ -23,3 +24,28 @@
 }
 
 /* Add more specific styles as needed */
+
+/* Styles for AI Feedback Box on Profile Page */
+.ai-feedback-profile {
+  border: 1px solid #e0d8c6; /* Subtle border */
+  padding: 20px;
+  margin: 0; /* Margin is handled by card-body */
+  color: #5a4a3a; /* Darker brown text */
+  background-color: #fdf5e6; /* Parchment-like background */
+  font-family: 'Georgia', serif; /* Serif font */
+  white-space: pre-wrap;
+  line-height: 1.6;
+  border-radius: 0.25rem; /* Match card style */
+}
+
+/* Add margin between direct child elements (paragraphs, lists) inside the feedback box */
+.ai-feedback-profile > p,
+.ai-feedback-profile > ul,
+.ai-feedback-profile > ol {
+  margin-bottom: 1em; /* Adjust value as needed for desired spacing */
+}
+
+/* Ensure the last direct child element doesn't have extra margin */
+.ai-feedback-profile > *:last-child {
+  margin-bottom: 0;
+}

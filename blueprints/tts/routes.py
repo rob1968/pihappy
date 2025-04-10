@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv() # Load environment variables from .env
 
-tts_bp = Blueprint("tts", __name__, url_prefix="/api/tts")
+tts_bp = Blueprint("tts", __name__) # Removed url_prefix here
 logger = logging.getLogger(__name__)
 
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")

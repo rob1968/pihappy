@@ -123,7 +123,11 @@ def chat():
             messages=[{"role": "system", "content": system_prompt}] + messages_for_api # Send modified history
         )
         antwoord = response["choices"][0]["message"]["content"]
+        logger.debug(f"Chat: Received response from OpenAI for user {gebruiker_id}") # Add success log
     except Exception as e:
+        # Log the specific error before returning
+        logger.error(f"OpenAI API Error for user {gebruiker_id}: {e}", exc_info=True) # Add logging
+        # Return the error JSON as before
         return jsonify({"antwoord": f"⚠️ AI-fout: {str(e)}"})
 
     assistant_tijd = datetime.utcnow().isoformat() + "Z" # Generate timestamp ONCE
@@ -132,6 +136,7 @@ def chat():
         "content": antwoord,
         "tijd": assistant_tijd # Use the generated timestamp
     }
+    # Append assistant message to session history *before* saving to DB
     session["chat_geschiedenis"].append(assistant_message_data)
 
     # 💡 Donatie prompt
@@ -166,9 +171,16 @@ def chat():
         # Default to English message if language not found
         extra_bericht = berichten.get(taal, berichten["en"])
 
-    # 🧠 Save chat
-    sla_chatgeschiedenis_op(gebruiker_id, session["chat_geschiedenis"])
-    session.modified = True
+    try: # Add try block around DB save and session modification
+        # 🧠 Save chat
+        logger.debug(f"Chat: Saving chat history to DB for user {gebruiker_id}") # Add log
+        sla_chatgeschiedenis_op(gebruiker_id, session["chat_geschiedenis"])
+        session.modified = True
+        logger.debug(f"Chat: DB save and session modification complete for user {gebruiker_id}") # Add log
+    except Exception as db_session_err:
+        logger.error(f"Chat: Error saving history or modifying session for user {gebruiker_id}: {db_session_err}", exc_info=True)
+        # Return 500 error if saving fails
+        return jsonify({"status": "error", "message": "Failed to save chat history."}), 500
 
     return jsonify({
         "antwoord": antwoord,

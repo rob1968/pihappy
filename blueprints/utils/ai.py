@@ -2,7 +2,7 @@
 
 import os
 import openai
-import logging # Add logging import
+import logging
 from nltk.sentiment import SentimentIntensityAnalyzer
 from nltk import download
 from dotenv import load_dotenv
@@ -11,14 +11,28 @@ from flask import session # Added import for session used in bepaal_taal
 # Ensure VADER is downloaded
 try:
     download("vader_lexicon")
-except Exception as e:
-    print(f"Could not download vader_lexicon: {e}") # Add error handling
+except Exception as nltk_err:
+    # Use logger instead of print
+    logging.error(f"NLTK download error for vader_lexicon: {nltk_err}", exc_info=True)
 
-sia = SentimentIntensityAnalyzer()
+# Initialize sia within a try-except block
+try:
+    sia = SentimentIntensityAnalyzer()
+except Exception as sia_init_err:
+    logging.error(f"Failed to initialize SentimentIntensityAnalyzer: {sia_init_err}", exc_info=True)
+    sia = None # Set sia to None if initialization fails
 
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Load and check OpenAI API key
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    logging.critical("OPENAI_API_KEY environment variable not set. AI features will likely fail.")
+else:
+    openai.api_key = OPENAI_API_KEY
+    logging.info("OpenAI API key loaded.")
 
+# Get logger instance for this module
+logger = logging.getLogger(__name__) # Moved logger definition up
 # --- User Provided Code START ---
 
 def bepaal_taal():
@@ -37,8 +51,15 @@ def analyseer_sentiment(entry, taal="en"): # Add taal parameter, default to 'en'
     Returns 'Neutraal' for non-English languages.
     """
     # Only perform VADER analysis if the language is English
+    # Check if sia was initialized successfully
+    if not sia:
+        logger.warning("SentimentIntensityAnalyzer (sia) not initialized. Returning neutral sentiment.")
+        return "Neutraal (SIA Init Failed) 😐", 0.0
+
     if taal != "en":
-        return "Neutraal (N/A) 😐", 0.0 # Return neutral for non-English
+        # Log why VADER isn't being used
+        logger.debug(f"Skipping VADER sentiment analysis for non-English language: {taal}")
+        return "Neutraal (Non-English) 😐", 0.0 # Return neutral for non-English
 
     tekst = f"{entry.get('stemming', '')} {entry.get('reflectie', '')} {entry.get('verbeterpunten', '')} {entry.get('dankbaarheid', '')}"
     score = sia.polarity_scores(tekst)
@@ -51,7 +72,7 @@ def analyseer_sentiment(entry, taal="en"): # Add taal parameter, default to 'en'
         return "Neutraal 😐", score["compound"]
 
 
-logger = logging.getLogger(__name__) # Add logger instance
+# logger = logging.getLogger(__name__) # Logger defined earlier
 
 def genereer_ai_feedback(entry, stemming, sentiment, gebruiker_info):
     logger.debug(f"Received gebruiker_info: {gebruiker_info}") # Log the received user info
@@ -221,12 +242,12 @@ def genereer_ai_feedback(entry, stemming, sentiment, gebruiker_info):
         ai_feedback = response["choices"][0]["message"]["content"]
         return ai_feedback
     except openai.error.OpenAIError as e:
-        # Consider logging the error here as well
-        print(f"⚠️ OpenAI Error in genereer_ai_feedback: {str(e)}")
+        # Use logger instead of print
+        logger.error(f"OpenAI API Error in genereer_ai_feedback: {e}", exc_info=True)
         return f"⚠️ AI-feedback kon niet worden opgehaald: {str(e)}"
     except Exception as e:
-        # Catch other potential errors
-        print(f"⚠️ Unexpected Error in genereer_ai_feedback: {str(e)}")
+        # Use logger instead of print
+        logger.error(f"Unexpected Error in genereer_ai_feedback: {e}", exc_info=True)
         return f"⚠️ AI-feedback kon niet worden opgehaald wegens een onverwachte fout."
 
 # --- User Provided Code END ---

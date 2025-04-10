@@ -69,22 +69,23 @@ def index():
         # --- Start Processing Block (runs if DB fetch succeeds, still inside main try) --- (INDENTED)
         eigen_entries = [journal_entry] if journal_entry else []
         stemming_toegestaan = True
-        laatste_stemming = None
-
-        # Check timing based on the single entry if it exists
+        laatste_stemming = None # Initialize
+        
+        # Get the last mood if an entry exists, regardless of time
         if journal_entry:
-            # This inner try/except for time processing might be redundant now with the outer one,
-            # but keeping it doesn't hurt and provides specific logging.
+            laatste_stemming = journal_entry.get("stemming") # Always get the mood if entry exists
+            logger.debug(f"Found last mood from DB entry: {laatste_stemming}")
+
+            # Now, separately check timing ONLY to determine if voting is allowed
             try:
                 if "datum" in journal_entry and isinstance(journal_entry["datum"], str):
-                     laatste_tijd = datetime.strptime(journal_entry["datum"], "%Y-%m-%d %H:%M:%S").replace(
-                         tzinfo=ZoneInfo("Europe/Amsterdam"))
-                     nu = datetime.now(ZoneInfo("Europe/Amsterdam"))
-                     verschil = nu - laatste_tijd
-                     if verschil.total_seconds() < 10 * 3600:
-                         stemming_toegestaan = False
-                         laatste_stemming = journal_entry.get("stemming")
-                     logger.debug(f"Time check: stemming_toegestaan={stemming_toegestaan}, laatste_stemming={laatste_stemming}")
+                    laatste_tijd = datetime.strptime(journal_entry["datum"], "%Y-%m-%d %H:%M:%S").replace(
+                        tzinfo=ZoneInfo("Europe/Amsterdam"))
+                    nu = datetime.now(ZoneInfo("Europe/Amsterdam"))
+                    verschil = nu - laatste_tijd
+                    if verschil.total_seconds() < 10 * 3600:
+                        stemming_toegestaan = False # Only disable voting if recent
+                    logger.debug(f"Time check for voting: stemming_toegestaan={stemming_toegestaan}")
                 else:
                      logger.warning(f"Journal entry for {gebruiker_id} missing 'datum' field or it's not a string.")
             except Exception as time_err:
@@ -122,9 +123,10 @@ def index():
             "user_language": simple_lang_code, # Add the simple language code
             "stemming_toegestaan": stemming_toegestaan,
             "laatste_stemming": laatste_stemming,
-            "eigen_feedback": feedback_serialized,
+            "eigen_feedback": feedback_serialized, # Keep sending the full doc structure just in case
             "chat_geschiedenis": session.get("chat_geschiedenis", []),
-            "laatste_ai_feedback": session.get("laatste_ai_feedback", None),
+            # Get latest feedback from the DB doc, not the session
+            "laatste_ai_feedback": raw_feedback_doc.get("feedback") if raw_feedback_doc else None,
         }
 
         logger.debug(f"Returning JSON data for /: {data_voor_frontend}")
@@ -187,7 +189,7 @@ def nieuw_dagboek():
 
     # Perform AI analysis (assuming these functions are available and work)
     try:
-        # logger.debug("Attempting AI analysis...") # Removed log
+        logger.debug(f"Attempting AI analysis for user {gebruiker_id}...") # Add user ID
         # Determine language for analysis (using the same logic as in ai.py)
         # Assuming 'gebruiker' dictionary is available here and contains language fields
         taal = gebruiker.get("browser_lang") or gebruiker.get("country_lang") or gebruiker.get("land", "en")
@@ -196,44 +198,56 @@ def nieuw_dagboek():
         sentiment, score = analyseer_sentiment(entry, taal) # Pass taal here
         # Note: genereer_ai_feedback already determines taal internally from gebruiker info
         ai_feedback = genereer_ai_feedback(entry, entry["stemming"], sentiment, gebruiker)
+        logger.debug(f"AI analysis completed for user {gebruiker_id}")
     except Exception as e:
-        # logger.error(f"AI Analysis Error: {e}", exc_info=True) # Removed log
-        print(f"⛔ AI Analyse Fout: {e}")
+        logger.error(f"AI Analysis Error for user {gebruiker_id}: {e}", exc_info=True) # Use logger and add user ID
+        # print(f"⛔ AI Analyse Fout: {e}") # Remove print
         # Decide how to handle AI errors - proceed without feedback or return error?
         ai_feedback = "Kon geen AI feedback genereren op dit moment."
         sentiment = "Onbekend"
         score = 0.0
 
-    # Upsert the journal entry using user's ID string as _id
-    update_data = {"$set": entry} # entry dict no longer contains gebruiker_id
-    # logger.debug(f"Upserting journal entry with _id {gebruiker_id}: {entry}") # Removed log
-    db.dagboek.update_one(
-        {"_id": gebruiker_id}, # Match document by user ID
-        update_data,
-        upsert=True # Create if doesn't exist, update if it does
-    )
+    try: # Add try block around DB operations
+        # Upsert the journal entry using user's ID string as _id
+        update_data = {"$set": entry} # entry dict no longer contains gebruiker_id
+        logger.debug(f"Upserting journal entry with _id {gebruiker_id}") # Use logger
+        db.dagboek.update_one(
+            {"_id": gebruiker_id}, # Match document by user ID
+            update_data,
+            upsert=True # Create if doesn't exist, update if it does
+        )
+        logger.debug(f"Journal entry upsert completed for {gebruiker_id}") # Confirmation log
 
-    # Save the feedback entry
-    feedback_entry = {
-        # Remove gebruiker_id, as user ID is now the document _id
-        "datum": datum_str,
-        "stemming": entry["stemming"],
-        "feedback": ai_feedback
-    }
-    # Upsert the feedback entry using user's ID string as _id
-    feedback_update_data = {"$set": feedback_entry} # feedback_entry dict no longer contains gebruiker_id
-    # logger.debug(f"Upserting feedback entry with _id {gebruiker_id}: {feedback_entry}") # Removed log
-    db.feedback.update_one(
-         {"_id": gebruiker_id}, # Match document by user ID
-         feedback_update_data,
-         upsert=True # Create if doesn't exist, update if it does
-    )
+        # Save the feedback entry
+        feedback_entry = {
+            "datum": datum_str,
+            "stemming": entry["stemming"],
+            "feedback": ai_feedback
+        }
+        # Upsert the feedback entry using user's ID string as _id
+        feedback_update_data = {"$set": feedback_entry} # feedback_entry dict no longer contains gebruiker_id
+        logger.debug(f"Upserting feedback entry with _id {gebruiker_id}") # Use logger
+        db.feedback.update_one(
+             {"_id": gebruiker_id}, # Match document by user ID
+             feedback_update_data,
+             upsert=True # Create if doesn't exist, update if it does
+        )
+        logger.debug(f"Feedback entry upsert completed for {gebruiker_id}") # Confirmation log
 
-    # Update session data
-    session["laatste_ai_feedback"] = ai_feedback
-    session["chat_geschiedenis"] = [] # Reset chat history on new entry? Review this logic.
-    session.modified = True # Ensure session changes are saved
-    # logger.debug("Session marked as modified.") # Removed log
+    except Exception as db_err: # Catch DB specific errors
+        logger.error(f"Database error during upsert for user {gebruiker_id}: {db_err}", exc_info=True)
+        return jsonify({"status": "error", "message": "Database error saving entry."}), 500
+
+    try: # Add try block around session updates
+        # Update session data
+        session["laatste_ai_feedback"] = ai_feedback
+        session["chat_geschiedenis"] = [] # Reset chat history on new entry? Review this logic.
+        session.modified = True # Ensure session changes are saved
+        logger.debug(f"Session updated for user {gebruiker_id}") # Confirmation log
+    except Exception as session_err: # Catch session specific errors
+        logger.error(f"Session error during update for user {gebruiker_id}: {session_err}", exc_info=True)
+        # Decide if this is fatal. Maybe proceed but log warning? For now, return 500.
+        return jsonify({"status": "error", "message": "Session update error after saving entry."}), 500
 
     # Prepare the entry data for JSON response (ensure no ObjectIds)
     # The 'entry' dict created locally shouldn't have an _id yet, but good practice if fetching later

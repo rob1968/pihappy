@@ -17,7 +17,7 @@ MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 client = MongoClient(MONGO_URI)
 db = client["pihappy"] # Ensure this is your correct database name
 
-@auth_bp.route("/api/register", methods=["POST"])
+@auth_bp.route("/register", methods=["POST"]) # Removed /api prefix
 def register():
     try:
         data = request.json
@@ -59,7 +59,7 @@ def register():
         return jsonify({"status": "error", "message": "Internal server error during registration."}), 500
 
 
-@auth_bp.route("/api/login", methods=["POST"])
+@auth_bp.route("/login", methods=["POST"]) # Removed /api prefix
 def login():
     try:
         data = request.json
@@ -105,7 +105,7 @@ def login():
         return jsonify({"status": "error", "message": "Internal server error during login."}), 500
 
 
-@auth_bp.route("/api/logout", methods=["POST"])
+@auth_bp.route("/logout", methods=["POST"]) # Removed /api prefix
 def logout():
     user_email = session.get('gebruiker', {}).get('email', 'Unknown')
     if 'gebruiker' in session:
@@ -119,8 +119,8 @@ def logout():
 
 
 # Combined route for getting profile (own or specific user)
-@auth_bp.route("/api/profile", methods=["GET"])          # For logged-in user
-@auth_bp.route("/api/profile/<user_id>", methods=["GET"]) # For specific user by ID
+@auth_bp.route("/profile", methods=["GET"])          # Removed /api prefix
+@auth_bp.route("/profile/<user_id>", methods=["GET"]) # Removed /api prefix
 def get_profile(user_id=None):
     # 1. Check Authentication (must be logged in to view any profile)
     if 'gebruiker' not in session or 'id' not in session['gebruiker']:
@@ -161,11 +161,14 @@ def get_profile(user_id=None):
              return jsonify({"error": "Server configuration error: ObjectId not found."}), 500
         return jsonify({"error": f"Invalid user ID format provided: {target_user_id_str}"}), 400 # Return 400 for bad ID format
 
-    # 4. Fetch User Data from Database
+    # 4. Fetch User and Feedback Data from Database
     try:
         user_data = db.users.find_one({"_id": target_user_object_id})
+        # Also fetch the latest feedback for this user
+        # Query feedback collection using the user ID STRING, matching how it's saved
+        feedback_data = db.feedback.find_one({"_id": target_user_id_str})
     except Exception as e:
-        logging.error(f"Database error fetching profile for ObjectId {target_user_object_id}: {e}", exc_info=True)
+        logging.error(f"Database error fetching profile or feedback for ObjectId {target_user_object_id}: {e}", exc_info=True)
         return jsonify({"error": "Database error occurred."}), 500
 
     # 5. Handle User Not Found
@@ -183,15 +186,16 @@ def get_profile(user_id=None):
         "naam": user_data.get("naam"),
         "email": user_data.get("email"), # Usually okay to return email
         "land": user_data.get("land"),
-        # Add other non-sensitive fields as needed (e.g., registration date)
+        # Add the latest feedback, default to None if not found or no feedback field
+        "latest_feedback": feedback_data.get("feedback") if feedback_data else None,
     }
     logging.debug(f"Successfully fetched profile data for user ID: {target_user_id_str}")
     return jsonify(profile_data), 200
 
 
 # Combined route for updating profile (own or specific user - requires permission check)
-@auth_bp.route("/api/profile", methods=["PUT"])          # Update logged-in user
-@auth_bp.route("/api/profile/<user_id>", methods=["PUT"]) # Update specific user by ID
+@auth_bp.route("/profile", methods=["PUT"])          # Removed /api prefix
+@auth_bp.route("/profile/<user_id>", methods=["PUT"]) # Removed /api prefix
 def update_profile(user_id=None):
     # 1. Check Authentication
     if 'gebruiker' not in session or 'id' not in session['gebruiker']:

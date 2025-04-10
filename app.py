@@ -65,13 +65,15 @@ from blueprints.community.routes import community_bp
 from blueprints.winkels.routes import winkels_bp
 from blueprints.shop.routes import shop_bp
 from blueprints.tts.routes import tts_bp # Import the new TTS blueprint
-app.register_blueprint(shop_bp)
-app.register_blueprint(auth_bp)
-app.register_blueprint(journal_bp)
-app.register_blueprint(chat_bp)
-app.register_blueprint(community_bp)
-app.register_blueprint(winkels_bp)
-app.register_blueprint(tts_bp) # Register the TTS blueprint
+# Register blueprints with /api prefix for clarity and separation
+# Assuming shop_bp, community_bp, winkels_bp also contain API routes. Adjust if not.
+app.register_blueprint(shop_bp, url_prefix='/api')
+app.register_blueprint(auth_bp, url_prefix='/api') # Handles /api/profile, /api/login etc.
+app.register_blueprint(journal_bp, url_prefix='/api') # Handles /api/, /api/nieuw
+app.register_blueprint(chat_bp, url_prefix='/api') # Handles /api/chat, /api/chat_geschiedenis etc.
+app.register_blueprint(community_bp, url_prefix='/api')
+app.register_blueprint(winkels_bp, url_prefix='/api')
+app.register_blueprint(tts_bp, url_prefix='/api') # Handles /api/tts/synthesize
 # ❌ Error handlers
 # Removed 404 handler - React Router handles this now.
 # @app.errorhandler(404)

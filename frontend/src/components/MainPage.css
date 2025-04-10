@@ -190,18 +190,19 @@ button:disabled {
   border-radius: 3px;
 }
 
-/* AI Feedback Box - Diary Style */
+/* AI Feedback Box - Restoring Appearance */
 .ai-feedback-box {
-  background-color: #fdf5e6; /* Parchment-like background */
-  border: 1px solid #e0d8c6; /* Subtle border */
-  border-radius: 5px; /* Less rounded */
-  padding: 20px; /* More padding */
-  margin: 25px 0; /* More margin */
-  color: #5a4a3a; /* Darker brown text */
-  font-family: 'Georgia', serif; /* Serif font for diary feel */
-  white-space: pre-wrap; /* Respect newlines for paragraphs */
-  line-height: 1.7; /* Slightly more line spacing */
-  box-shadow: 1px 1px 3px rgba(0,0,0,0.1); /* Subtle shadow */
+  /* border: 2px solid red; */ /* Remove red border */
+  border: 1px solid #e0d8c6; /* Restore original Subtle border */
+  /* border-radius: 5px; */ /* Keep original radius commented */
+  padding: 20px; /* Use the padding that worked */
+  margin: 15px 0; /* Use the margin that worked */
+  color: #5a4a3a; /* Restore original Darker brown text */
+  background-color: #fdf5e6; /* Restore original Parchment-like background */
+  font-family: 'Georgia', serif; /* Restore original Serif font */
+  white-space: pre-wrap;
+  line-height: 1.6; /* Standard line height */
+  /* Still keeping original line-height, shadow, border-radius commented out */
 }
 
 /* Add margin between direct child elements (paragraphs, lists) inside the feedback box */

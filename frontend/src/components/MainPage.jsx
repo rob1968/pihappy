@@ -23,7 +23,7 @@ const MainPage = () => {
         const fetchInitialData = async () => {
             // Fetch Chat History
             try {
-                const chatResponse = await fetch('/chat_geschiedenis', { credentials: 'include' });
+                const chatResponse = await fetch('/api/chat_geschiedenis', { credentials: 'include' }); // Added /api prefix
                 if (chatResponse.ok) {
                     const chatData = await chatResponse.json();
                     setChatMessages(chatData.geschiedenis || []);
@@ -40,24 +40,32 @@ const MainPage = () => {
 
             // Fetch Journal Data (from the updated '/' endpoint)
             try {
-                const journalResponse = await fetch('/', { credentials: 'include' }); // Fetch from journal root
+                const journalResponse = await fetch('/api/', { credentials: 'include' }); // Added /api prefix
                 if (journalResponse.ok) {
-                    const journalData = await journalResponse.json();
-                    setLaatsteStemming(journalData.laatste_stemming);
-                    setStemmingToegestaan(journalData.stemming_toegestaan);
-                    // Set the user language for TTS from the backend data, fallback to default
-                    // Assuming backend sends simple code like 'en', 'es' in user_language field
-                    if (journalData.user_language) {
-                        setUserLanguage(journalData.user_language);
-                        console.log("User TTS language set to:", journalData.user_language);
+                    const contentType = journalResponse.headers.get("content-type");
+                    if (contentType && contentType.indexOf("application/json") !== -1) {
+                        // It's JSON, proceed to parse
+                        const journalData = await journalResponse.json();
+                        // ... (rest of the success logic)
+                        setLaatsteStemming(journalData.laatste_stemming);
+                        setStemmingToegestaan(journalData.stemming_toegestaan);
+                        if (journalData.user_language) {
+                            setUserLanguage(journalData.user_language);
+                            console.log("User TTS language set to:", journalData.user_language);
+                        } else {
+                            console.warn("User language not found in backend response, using default:", userLanguage);
+                        }
+                        setEigenFeedback(journalData.laatste_ai_feedback || ''); // Use latest AI feedback from session
+                        // setFlashedMessages([{ message: `Welcome, ${journalData.naam}!`, category: 'info' }]); // Example flash moved inside JSON check
                     } else {
-                        console.warn("User language not found in backend response, using default:", userLanguage);
+                        // It's not JSON, likely HTML (error/login page)
+                        console.error("Failed to fetch journal data: Expected JSON, but received", contentType);
+                        // Optionally, try to read as text to see the HTML content for debugging
+                        // const errorText = await journalResponse.text();
+                        // console.error("Received HTML content:", errorText);
+                        // Handle this case - maybe show a generic error or prompt login?
+                        // For now, just log the error. The states won't be updated.
                     }
-                    // Assuming eigen_feedback is an array of feedback objects
-                    // We might want to display only the latest or format them
-                    // For now, let's just store the latest AI feedback if available
-                    setEigenFeedback(journalData.laatste_ai_feedback || ''); // Use latest AI feedback from session
-                    // setFlashedMessages([{ message: `Welcome, ${journalData.naam}!`, category: 'info' }]); // Example flash
                 } else if (journalResponse.status === 401) {
                     console.warn("Not logged in, cannot fetch journal data.");
                      // Redirect to login? Handled by backend redirect usually, but good for clarity
@@ -84,7 +92,7 @@ const MainPage = () => {
 
         try {
             // console.log("Attempting to fetch /nieuw..."); // Removed log
-            const response = await fetch('/nieuw', { // Endpoint for submitting new entry
+            const response = await fetch('/api/nieuw', { // Added /api prefix
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded', // Match backend expectation
@@ -146,7 +154,7 @@ const MainPage = () => {
         setAiIsBezig(true); // Set loading state
 
         try {
-            const response = await fetch('/chat', {
+            const response = await fetch('/api/chat', { // Added /api prefix
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -208,7 +216,7 @@ const MainPage = () => {
         // }
 
         try {
-            const response = await fetch(`/chat/verwijder/${messageId}`, {
+            const response = await fetch(`/api/chat/verwijder/${messageId}`, { // Added /api prefix
                 method: 'DELETE',
                 credentials: 'include' // Include credentials if needed by backend auth
             });
@@ -288,7 +296,7 @@ const MainPage = () => {
 
         console.log(`Requesting TTS from backend proxy for lang '${languageCode}':`, text); // Log language
 
-        fetch("/api/tts/synthesize", { // Call the new backend endpoint
+        fetch("/api/tts/synthesize", { // This path is already correct
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -466,7 +474,7 @@ const MainPage = () => {
             )}
 
             {/* AI Feedback */}
-            {eigenFeedback && (
+            {/* AI Feedback Area - Always Rendered */}
                 <>
                     <div
                         id="aiFeedbackBox" // Keep ID for potential direct manipulation if needed, though state is preferred
@@ -475,8 +483,11 @@ const MainPage = () => {
                         style={{ display: feedbackVisible ? 'block' : 'none' }}
                         // Render paragraphs manually instead of using dangerouslySetInnerHTML
                       >
-                        {/* Use the helper function to render the feedback */}
-                        {renderFeedback(eigenFeedback)}
+                        {/* Show feedback or default message */}
+                        {eigenFeedback
+                            ? renderFeedback(eigenFeedback)
+                            : <p>Submit your mood to get feedback.</p>
+                        }
                       </div>
                       {/* Removed extraneous closing tag from previous diff error */}
                     <button
@@ -488,7 +499,7 @@ const MainPage = () => {
                         {feedbackVisible ? '👆 Hide feedback' : '👇 Show feedback'}
                     </button>
                 </>
-            )}
+            {/* End AI Feedback Area */}
 
             {/* Sound Toggle */}
             <button id="toggleSoundButton" onClick={toggleSound}>
