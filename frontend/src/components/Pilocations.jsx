@@ -40,8 +40,8 @@ function Pilocations() {
   const autocompleteRef = useRef(null); // Ref for Autocomplete input
 
   const onLoad = useCallback(function callback(mapInstance) {
-    mapRef.current = mapInstance;
-    setMap(mapInstance);
+    mapRef.current = mapInstance; // Store map instance in ref
+    setMap(mapInstance); // Also keep in state if needed elsewhere
   }, []);
 
   const onUnmount = useCallback(function callback(map) {
@@ -154,12 +154,16 @@ function Pilocations() {
         return;
     }
 
+    // Store coords locally before fetch clears state
+    const submittedLat = newShopLatitude;
+    const submittedLng = newShopLongitude;
+
     const shopData = {
       name: newShopName,
       category: newShopCategory,
       location: newShopLocation,
-      latitude: newShopLatitude,
-      longitude: newShopLongitude,
+      latitude: submittedLat, // Use stored coords
+      longitude: submittedLng, // Use stored coords
       type: newShopType,
     };
 
@@ -177,8 +181,18 @@ function Pilocations() {
       }
       return response.json();
     })
-    .then(newShop => {
+    .then(newShop => { // newShop here is the object returned by the backend
       console.log("Shop added successfully:", newShop);
+
+      // --- Pan map to new location ---
+      if (mapRef.current && submittedLat && submittedLng) {
+          console.log(`Panning map to: ${submittedLat}, ${submittedLng}`);
+          mapRef.current.panTo({ lat: submittedLat, lng: submittedLng });
+          // Optionally set zoom level
+          // mapRef.current.setZoom(15); // Example zoom level
+      }
+      // --- End Pan map ---
+
       // Clear form and hide it
       setNewShopName("");
       setNewShopCategory("");
@@ -186,9 +200,9 @@ function Pilocations() {
       setNewShopLatitude(null);
       setNewShopLongitude(null);
       setNewShopType("Shop");
-      setShopSuggestions([]); // Clear suggestions list on success
+      setShopSuggestions([]);
       setShowAddShopForm(false);
-      setRefreshData(prev => prev + 1);
+      setRefreshData(prev => prev + 1); // Trigger data refresh AFTER panning (or doesn't matter much)
     })
     .catch(err => {
       console.error("Error adding shop:", err);
@@ -204,7 +218,6 @@ function Pilocations() {
   const fetchShopSuggestions = useCallback(async (address) => {
     if (!address || address.trim().length < 5) {
       setShopSuggestions([]);
-      // Keep name as is unless address is cleared/too short
       if (!address || address.trim().length === 0) {
           setNewShopName("");
       }
@@ -219,7 +232,6 @@ function Pilocations() {
           setShopSuggestions([]);
         } else {
           setShopSuggestions(data.suggestions || []);
-          // Set name to blank if suggestions appear, forcing user to select
           if (data.suggestions && data.suggestions.length > 0) {
              setNewShopName(""); // Clear name field when suggestions load
           }
@@ -232,7 +244,7 @@ function Pilocations() {
       console.error("Error fetching shop suggestions:", fetchError);
       setShopSuggestions([]);
     }
-  }, []); // useCallback dependencies are empty
+  }, []);
 
   // Effect to fetch suggestions when location changes (debounced)
   useEffect(() => {
@@ -243,7 +255,7 @@ function Pilocations() {
         }
       } else {
         setShopSuggestions([]);
-        setNewShopName(""); // Clear name if location is too short or empty
+        setNewShopName("");
       }
     }, 700);
 
@@ -251,8 +263,6 @@ function Pilocations() {
       clearTimeout(handler);
     };
   }, [newShopLocation, newShopLatitude, newShopLongitude, fetchShopSuggestions]);
-
-  // Removed handleSuggestionSelect as direct onChange on select is used
 
   // --- End Shop Name Suggestion Logic ---
 
@@ -282,15 +292,15 @@ function Pilocations() {
           <h2>Add Your Shop</h2>
           <form onSubmit={handleAddShopSubmit}>
 
-            {/* <<< MODIFIED: Conditionally render Input or Select for Company Name */}
+            {/* Conditionally render Input or Select for Company Name */}
             <div className="mb-3">
               <label htmlFor="newShopName" className="form-label">Company *</label>
               {shopSuggestions.length > 0 ? (
                 <select
                   id="newShopName"
                   className="form-select"
-                  value={newShopName} // Controlled component
-                  onChange={(e) => setNewShopName(e.target.value)} // Update state on change
+                  value={newShopName}
+                  onChange={(e) => setNewShopName(e.target.value)}
                   required
                   disabled={addShopLoading}
                 >
@@ -314,8 +324,6 @@ function Pilocations() {
                 />
               )}
             </div>
-
-            {/* REMOVED Separate Suggestion Dropdown */}
 
             {/* Category Dropdown */}
             <div className="mb-3">
@@ -381,7 +389,7 @@ function Pilocations() {
               mapContainerStyle={containerStyle}
               center={MAP_CENTER}
               zoom={10}
-              onLoad={onLoad}
+              onLoad={onLoad} // Use onLoad to get map instance
               onUnmount={onUnmount}
             >
               {map && filteredWinkels.map((shop) => {
