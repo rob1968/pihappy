@@ -34,7 +34,7 @@ function Pilocations() {
   const [addShopError, setAddShopError] = useState(null);
   const [addShopLoading, setAddShopLoading] = useState(false);
   const [refreshData, setRefreshData] = useState(0); // Counter to trigger data refresh
-  // const [shopSuggestions, setShopSuggestions] = useState([]); // No longer needed to store all suggestions
+  const [shopSuggestions, setShopSuggestions] = useState([]); // State for name suggestions
 
   const mapRef = useRef(); // To store map instance
   const autocompleteRef = useRef(null); // Ref for Autocomplete input
@@ -139,7 +139,7 @@ function Pilocations() {
       console.log("Autocomplete did not return a place with geometry and address.");
       setNewShopLatitude(null);
       setNewShopLongitude(null);
-      // Location state update will trigger the useEffect below to clear suggestions/name
+      setShopSuggestions([]); // Clear suggestions if address becomes invalid
     }
   };
 
@@ -186,7 +186,7 @@ function Pilocations() {
       setNewShopLatitude(null);
       setNewShopLongitude(null);
       setNewShopType("Shop");
-      // setShopSuggestions([]); // No longer needed
+      setShopSuggestions([]); // Clear suggestions list on success
       setShowAddShopForm(false);
       setRefreshData(prev => prev + 1);
     })
@@ -203,8 +203,11 @@ function Pilocations() {
   // --- Shop Name Suggestion Logic ---
   const fetchShopSuggestions = useCallback(async (address) => {
     if (!address || address.trim().length < 5) {
-      // setShopSuggestions([]); // No longer storing suggestions array
-      setNewShopName(""); // Clear name if address is too short
+      setShopSuggestions([]);
+      // Keep name as is unless address is cleared/too short
+      if (!address || address.trim().length === 0) {
+          setNewShopName("");
+      }
       return;
     }
     try {
@@ -213,29 +216,21 @@ function Pilocations() {
         const data = await response.json();
         if (data.error) {
           console.warn("Suggestion API returned an error:", data.error);
-          // setShopSuggestions([]);
-          setNewShopName(""); // Clear name on error
+          setShopSuggestions([]);
         } else {
-          // setShopSuggestions(data.suggestions || []); // No longer storing suggestions array
-          // --- MODIFIED: Set name to first suggestion or clear ---
+          setShopSuggestions(data.suggestions || []);
+          // Set name to blank if suggestions appear, forcing user to select
           if (data.suggestions && data.suggestions.length > 0) {
-            setNewShopName(data.suggestions[0]); // Set name to the first suggestion
-            console.log("Set company name suggestion:", data.suggestions[0]);
-          } else {
-            setNewShopName(""); // Clear name if no suggestions found
-            console.log("No company name suggestions found.");
+             setNewShopName(""); // Clear name field when suggestions load
           }
-          // --- END MODIFICATION ---
         }
       } else {
         console.error("Failed to fetch shop suggestions:", response.statusText);
-        // setShopSuggestions([]);
-        setNewShopName(""); // Clear name on fetch failure
+        setShopSuggestions([]);
       }
     } catch (fetchError) {
       console.error("Error fetching shop suggestions:", fetchError);
-      // setShopSuggestions([]);
-      setNewShopName(""); // Clear name on fetch error
+      setShopSuggestions([]);
     }
   }, []); // useCallback dependencies are empty
 
@@ -247,18 +242,18 @@ function Pilocations() {
              fetchShopSuggestions(newShopLocation);
         }
       } else {
-        // setShopSuggestions([]); // No longer storing suggestions array
+        setShopSuggestions([]);
         setNewShopName(""); // Clear name if location is too short or empty
       }
-    }, 700); // Fetch 700ms after user stops typing location or selects from Autocomplete
+    }, 700);
 
     return () => {
       clearTimeout(handler);
     };
   }, [newShopLocation, newShopLatitude, newShopLongitude, fetchShopSuggestions]);
 
-  // No longer needed:
-  // const handleSuggestionSelect = (selectedValue) => { ... };
+  // Removed handleSuggestionSelect as direct onChange on select is used
+
   // --- End Shop Name Suggestion Logic ---
 
 
@@ -286,21 +281,38 @@ function Pilocations() {
         <div className="add-shop-form card mb-4 p-3">
           <h2>Add Your Shop</h2>
           <form onSubmit={handleAddShopSubmit}>
-            {/* Name Input Field (Always Text) */}
+
+            {/* <<< MODIFIED: Conditionally render Input or Select for Company Name */}
             <div className="mb-3">
-              {/* MODIFIED Label */}
               <label htmlFor="newShopName" className="form-label">Company *</label>
-              <input
-                type="text"
-                id="newShopName"
-                className="form-control"
-                // MODIFIED Placeholder
-                placeholder="Company Name (Auto-suggested after address)"
-                value={newShopName}
-                onChange={(e) => setNewShopName(e.target.value)}
-                required
-                disabled={addShopLoading}
-              />
+              {shopSuggestions.length > 0 ? (
+                <select
+                  id="newShopName"
+                  className="form-select"
+                  value={newShopName} // Controlled component
+                  onChange={(e) => setNewShopName(e.target.value)} // Update state on change
+                  required
+                  disabled={addShopLoading}
+                >
+                  <option value="" disabled>-- Select a company --</option>
+                  {shopSuggestions.map((suggestion, index) => (
+                    <option key={index} value={suggestion}>
+                      {suggestion}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  id="newShopName"
+                  className="form-control"
+                  placeholder="Company Name (Enter address first for suggestions)"
+                  value={newShopName}
+                  onChange={(e) => setNewShopName(e.target.value)}
+                  required
+                  disabled={addShopLoading}
+                />
+              )}
             </div>
 
             {/* REMOVED Separate Suggestion Dropdown */}
@@ -395,6 +407,14 @@ function Pilocations() {
                     <h3>{selectedWinkel.name || "Name unknown"}</h3>
                     <p>{selectedWinkel.location || "Location unknown"}</p>
                     <p>Category: {selectedWinkel.category || "Unknown"}</p>
+                    {/* Conditionally display phone */}
+                    {selectedWinkel.phone && (
+                      <p>Phone: {selectedWinkel.phone}</p>
+                    )}
+                    {/* Conditionally display website as a link */}
+                    {selectedWinkel.website && (
+                      <p>Website: <a href={selectedWinkel.website} target="_blank" rel="noopener noreferrer">{selectedWinkel.website}</a></p>
+                    )}
                     {selectedWinkel.userId && (
                       <p>Added by: <a href={`/profile/${selectedWinkel.userId}`} target="_blank" rel="noopener noreferrer">View Profile</a></p>
                     )}

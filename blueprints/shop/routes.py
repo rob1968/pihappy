@@ -28,7 +28,9 @@ def format_shop_for_frontend(doc):
         'detail_url': doc.get('Detail URL'),
         'image_url': doc.get('Image URL'),
         'latitude': None, # Default to None
-        'longitude': None # Default to None
+        'longitude': None, # Default to None
+        'phone': doc.get('phone'), # <<< ADDED phone
+        'website': doc.get('website') # <<< ADDED website
     }
 
     # Safely convert latitude/Latitude to float, prioritizing lowercase
@@ -186,6 +188,7 @@ def add_shop():
                     'location': f"{geocoded_lat},{geocoded_lng}",
                     'radius': VERIFICATION_RADIUS_METERS,
                     'keyword': shop_name, # Use keyword to strongly bias towards the name
+                    'fields': 'place_id,name', # <<< Request place_id for details lookup
                     'key': GEOCODING_API_KEY
                 }
                 nearby_response = requests.get(NEARBY_SEARCH_API_ENDPOINT, params=nearby_params, timeout=10)
@@ -195,6 +198,41 @@ def add_shop():
                 if nearby_data.get('status') == 'OK' and nearby_data.get('results'):
                     # Found at least one match nearby with the keyword
                     logging.info(f"Nearby Search successful: Found potential match(es) for '{shop_name}' near {geocoded_lat},{geocoded_lng}.")
+                    # --- Fetch Place Details (Website/Phone) ---
+                    place_id = nearby_data['results'][0].get('place_id') # Get place_id of the first match
+                    if place_id:
+                        PLACE_DETAILS_ENDPOINT = "https://maps.googleapis.com/maps/api/place/details/json"
+                        details_params = {
+                            'place_id': place_id,
+                            'fields': 'website,formatted_phone_number', # Request specific fields
+                            'key': GEOCODING_API_KEY
+                        }
+                        try:
+                            logging.debug(f"Fetching details for place_id: {place_id}")
+                            details_response = requests.get(PLACE_DETAILS_ENDPOINT, params=details_params, timeout=5)
+                            details_response.raise_for_status()
+                            details_data = details_response.json()
+
+                            if details_data.get('status') == 'OK' and details_data.get('result'):
+                                result = details_data['result']
+                                website = result.get('website')
+                                phone = result.get('formatted_phone_number')
+                                if website:
+                                    shop_to_insert['website'] = website
+                                    logging.info(f"Added website: {website}")
+                                if phone:
+                                    shop_to_insert['phone'] = phone
+                                    logging.info(f"Added phone: {phone}")
+                            else:
+                                logging.warning(f"Place Details request failed for {place_id}. Status: {details_data.get('status')}")
+
+                        except requests.exceptions.RequestException as details_err:
+                            logging.error(f"Error calling Place Details API for {place_id}: {details_err}")
+                        except Exception as details_proc_err:
+                             logging.error(f"Error processing Place Details response for {place_id}: {details_proc_err}", exc_info=True)
+                    else:
+                        logging.warning("No place_id found in Nearby Search result to fetch details.")
+                    # --- End Fetch Place Details ---
                     # Verification successful, proceed with insertion
                 elif nearby_data.get('status') == 'ZERO_RESULTS':
                     logging.warning(f"Nearby Search failed: No place named '{shop_name}' found within {VERIFICATION_RADIUS_METERS}m of the provided address ({geocoded_lat},{geocoded_lng}).")
