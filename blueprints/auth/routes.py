@@ -26,30 +26,36 @@ def register():
         naam = data.get("naam")
         email = data.get("email")
         wachtwoord = data.get("wachtwoord")
-        land = data.get("land")
+        land = data.get("land") # Expecting country code here, e.g., 'az'
+        full_country_name = data.get("full_country_name") # <<< Expecting full name here, e.g., "Azerbaijan"
         # Removed shop-related fields based on previous steps
         browser_lang = data.get("browser_lang", "en") # Keep browser lang for info
         preferred_lang = data.get("language") # Get preferred language from request
 
-        # Add preferred_lang to validation
-        if not naam or not email or not wachtwoord or not land or not preferred_lang:
-            return jsonify({"status": "error", "message": "Required fields missing (Name, Email, Password, Country, Language)."}), 400
+        # Add preferred_lang and full_country_name to validation
+        if not naam or not email or not wachtwoord or not land or not preferred_lang or not full_country_name: # <<< ADDED check for full name
+            return jsonify({"status": "error", "message": "Required fields missing (Name, Email, Password, Country Code, Full Country Name, Language)."}), 400
 
         existing_user = db.users.find_one({"email": email})
         if existing_user:
             return jsonify({"status": "error", "message": "Gebruiker met dit e-mailadres bestaat al."}), 400
 
         hashed_password = generate_password_hash(wachtwoord)
-        country_lang = get_country_language(land) if land else "en" # Still useful for fallback/info
+        # Use the provided 'land' (code) for determining country_lang if needed
+        country_lang = get_country_language(land) if land else "en"
+
+        # --- REMOVED Geocoding logic to derive full country name ---
+        # Frontend is now expected to send both 'land' (code) and 'full_country_name'
 
         user = {
             "naam": naam,
             "email": email,
             "wachtwoord": hashed_password,
-            "land": land,
+            "land": land, # Store the provided country code/value
+            "full_land_name": full_country_name, # Store the provided full country name
             # Removed shop fields
             "browser_lang": browser_lang, # User's browser language at registration
-            "country_lang": country_lang,
+            "country_lang": country_lang, # Based on 'land' code
             "preferred_language": preferred_lang, # Use language selected by user
             "timestamp": timestamp,
         }
@@ -189,23 +195,25 @@ def get_profile(user_id=None):
         "_id": str(user_data["_id"]), # Convert ObjectId back to string for JSON
         "naam": user_data.get("naam"),
         "email": user_data.get("email"), # Usually okay to return email
-        "land": user_data.get("land"),
+        "land": user_data.get("land"), # Keep original land value
+        "full_land_name": user_data.get("full_land_name"), # <<< ADDED: Get full name
         "language": user_data.get("preferred_language", user_data.get("country_lang", user_data.get("browser_lang", "en"))), # Prioritize preferred_language
         # Add the latest feedback, default to None if not found or no feedback field
         "latest_feedback": feedback_data.get("feedback") if feedback_data else None,
-        "country_center_lat": None, # <<< ADDED: Default to None
-        "country_center_lng": None  # <<< ADDED: Default to None
+        "country_center_lat": None, # Default to None
+        "country_center_lng": None  # Default to None
     }
 
-    # --- Geocode User's Country ---
-    user_country = user_data.get("land")
+    # --- Geocode User's Country (using full name if available) ---
+    # Prioritize full name for geocoding, fall back to original 'land' field
+    country_to_geocode = user_data.get("full_land_name", user_data.get("land"))
     GEOCODING_API_KEY = os.environ.get('GOOGLE_PLACES_API_KEY') # Use the same key as shops
 
-    if user_country and GEOCODING_API_KEY:
+    if country_to_geocode and GEOCODING_API_KEY: # <<< Use combined variable
         GEOCODING_API_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json"
-        geocode_params = {'address': user_country, 'key': GEOCODING_API_KEY}
+        geocode_params = {'address': country_to_geocode, 'key': GEOCODING_API_KEY} # <<< Use combined variable
         try:
-            logging.debug(f"Geocoding country for profile '{target_user_id_str}': {user_country}")
+            logging.debug(f"Geocoding country for profile '{target_user_id_str}': {country_to_geocode}") # <<< Use combined variable
             geocode_response = requests.get(GEOCODING_API_ENDPOINT, params=geocode_params, timeout=5)
             geocode_response.raise_for_status()
             geocode_data = geocode_response.json()
@@ -215,16 +223,16 @@ def get_profile(user_id=None):
                 location_data = geocode_data['results'][0]['geometry']['location']
                 profile_data["country_center_lat"] = location_data.get('lat')
                 profile_data["country_center_lng"] = location_data.get('lng')
-                logging.info(f"Geocoded country '{user_country}' to: Lat={profile_data['country_center_lat']}, Lng={profile_data['country_center_lng']}")
+                logging.info(f"Geocoded country '{country_to_geocode}' to: Lat={profile_data['country_center_lat']}, Lng={profile_data['country_center_lng']}") # <<< Use combined variable
             else:
-                 logging.warning(f"Geocoding failed for country '{user_country}'. Status: {geocode_data.get('status')}")
+                 logging.warning(f"Geocoding failed for country '{country_to_geocode}'. Status: {geocode_data.get('status')}") # <<< Use combined variable
 
         except requests.exceptions.RequestException as geo_err:
-            logging.error(f"Error calling Geocoding API for country '{user_country}': {geo_err}")
+            logging.error(f"Error calling Geocoding API for country '{country_to_geocode}': {geo_err}") # <<< Use combined variable
         except Exception as geo_proc_err:
-            logging.error(f"Error processing Geocoding response for country '{user_country}': {geo_proc_err}", exc_info=True)
-    elif not user_country:
-        logging.warning(f"User {target_user_id_str} has no country ('land') set in profile.")
+            logging.error(f"Error processing Geocoding response for country '{country_to_geocode}': {geo_proc_err}", exc_info=True) # <<< Use combined variable
+    elif not country_to_geocode: # <<< Use combined variable
+        logging.warning(f"User {target_user_id_str} has no country ('land' or 'full_land_name') set in profile.")
     elif not GEOCODING_API_KEY:
          logging.error("GOOGLE_PLACES_API_KEY not set, cannot geocode country for profile.")
     # --- End Geocode User's Country ---
