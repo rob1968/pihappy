@@ -34,12 +34,12 @@ function Pilocations() {
   const [addShopError, setAddShopError] = useState(null);
   const [addShopLoading, setAddShopLoading] = useState(false);
   const [refreshData, setRefreshData] = useState(0); // Counter to trigger data refresh
+  // const [shopSuggestions, setShopSuggestions] = useState([]); // No longer needed to store all suggestions
 
   const mapRef = useRef(); // To store map instance
   const autocompleteRef = useRef(null); // Ref for Autocomplete input
 
   const onLoad = useCallback(function callback(mapInstance) {
-    // console.log("Map loaded:", mapInstance); // Removed log
     mapRef.current = mapInstance;
     setMap(mapInstance);
   }, []);
@@ -51,9 +51,8 @@ function Pilocations() {
 
   // Fetch shops data - runs on initial load and when refreshData changes
   useEffect(() => {
-    // console.log("useEffect: Fetching shops..."); // Removed log
     setLoading(true);
-    fetch('/api/shops') // Fetch from the new endpoint
+    fetch('/api/shops')
       .then(response => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -61,7 +60,6 @@ function Pilocations() {
         return response.json();
       })
       .then(data => {
-        // Filter out shops without valid coordinates returned by the updated API
         const validShops = data.filter(shop =>
           typeof shop.latitude === 'number' &&
           typeof shop.longitude === 'number'
@@ -69,30 +67,27 @@ function Pilocations() {
         if (validShops.length < data.length) {
             console.warn(`Filtered out ${data.length - validShops.length} shops due to missing/invalid coordinates after API formatting.`);
         }
-        // console.log("useEffect: Shops data received, count:", validShops.length); // Removed log
         setWinkels(validShops);
         setError(null);
       })
       .catch(err => {
-        console.error("Error loading shops:", err); // Reverted log
+        console.error("Error loading shops:", err);
         setError(err.message || "Could not load shops. Please try again later.");
         setWinkels([]);
       })
       .finally(() => {
-        // console.log(">>> FINALLY BLOCK EXECUTED - Setting loading to false"); // Removed log
         setLoading(false);
       });
-  }, [refreshData]); // Re-fetch shops when refreshData changes
+  }, [refreshData]);
 
   // Filter shops when category or shops list changes
   useEffect(() => {
     if (selectedCategory === 'all') {
-      setFilteredWinkels(winkels); // Use 'winkels' state which now holds shops data
+      setFilteredWinkels(winkels);
     } else {
-      // Assuming 'shops' data has a 'category' field matching the filter values
       setFilteredWinkels(winkels.filter(shop => shop.category === selectedCategory));
     }
-    setSelectedWinkel(null); // Close info window when filter changes
+    setSelectedWinkel(null);
   }, [selectedCategory, winkels]);
 
   // Fetch categories for the dropdown
@@ -105,13 +100,12 @@ function Pilocations() {
         return response.json();
       })
       .then(data => {
-        setAvailableCategories(data); // Store fetched categories
+        setAvailableCategories(data);
       })
       .catch(err => {
         console.error("Error fetching categories:", err);
-        // Optionally set an error state here if needed
       });
-  }, []); // Runs once on component mount
+  }, []);
 
   const handleCategoryChange = (event) => {
     setSelectedCategory(event.target.value);
@@ -133,15 +127,19 @@ function Pilocations() {
   const onPlaceChanged = () => {
     const place = autocompleteRef.current?.getPlace();
     if (place?.geometry?.location && place?.formatted_address) {
-      setNewShopLocation(place.formatted_address);
-      setNewShopLatitude(place.geometry.location.lat()); // Store latitude
-      setNewShopLongitude(place.geometry.location.lng()); // Store longitude
-      console.log("Place selected:", place.formatted_address, place.geometry.location.lat(), place.geometry.location.lng());
+      const address = place.formatted_address;
+      const lat = place.geometry.location.lat();
+      const lng = place.geometry.location.lng();
+      setNewShopLocation(address);
+      setNewShopLatitude(lat);
+      setNewShopLongitude(lng);
+      console.log("Place selected:", address, lat, lng);
+      // Location state update will trigger the useEffect below to fetch suggestions
     } else {
       console.log("Autocomplete did not return a place with geometry and address.");
-      // Clear coordinates if address is invalid or cleared
       setNewShopLatitude(null);
       setNewShopLongitude(null);
+      // Location state update will trigger the useEffect below to clear suggestions/name
     }
   };
 
@@ -150,12 +148,18 @@ function Pilocations() {
     setAddShopLoading(true);
     setAddShopError(null);
 
+    if (newShopLatitude === null || newShopLongitude === null) {
+        setAddShopError("Could not determine coordinates for the location. Please select a valid address.");
+        setAddShopLoading(false);
+        return;
+    }
+
     const shopData = {
       name: newShopName,
       category: newShopCategory,
       location: newShopLocation,
-      latitude: newShopLatitude,   // Add latitude
-      longitude: newShopLongitude, // Add longitude
+      latitude: newShopLatitude,
+      longitude: newShopLongitude,
       type: newShopType,
     };
 
@@ -163,11 +167,10 @@ function Pilocations() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(shopData),
-      credentials: 'include' // Include credentials if user association is needed
+      credentials: 'include'
     })
     .then(response => {
       if (!response.ok) {
-        // Attempt to read error message from backend if available
         return response.json().then(errData => {
           throw new Error(errData.error || `HTTP error! status: ${response.status}`);
         });
@@ -180,11 +183,11 @@ function Pilocations() {
       setNewShopName("");
       setNewShopCategory("");
       setNewShopLocation("");
-      setNewShopLatitude(null); // Clear coordinates
-      setNewShopLongitude(null); // Clear coordinates
+      setNewShopLatitude(null);
+      setNewShopLongitude(null);
       setNewShopType("Shop");
+      // setShopSuggestions([]); // No longer needed
       setShowAddShopForm(false);
-      // Trigger data refresh for the map
       setRefreshData(prev => prev + 1);
     })
     .catch(err => {
@@ -197,57 +200,127 @@ function Pilocations() {
   };
   // --- End Add Shop Form Logic ---
 
+  // --- Shop Name Suggestion Logic ---
+  const fetchShopSuggestions = useCallback(async (address) => {
+    if (!address || address.trim().length < 5) {
+      // setShopSuggestions([]); // No longer storing suggestions array
+      setNewShopName(""); // Clear name if address is too short
+      return;
+    }
+    try {
+      const response = await fetch(`/api/shops/suggestions?address=${encodeURIComponent(address)}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.error) {
+          console.warn("Suggestion API returned an error:", data.error);
+          // setShopSuggestions([]);
+          setNewShopName(""); // Clear name on error
+        } else {
+          // setShopSuggestions(data.suggestions || []); // No longer storing suggestions array
+          // --- MODIFIED: Set name to first suggestion or clear ---
+          if (data.suggestions && data.suggestions.length > 0) {
+            setNewShopName(data.suggestions[0]); // Set name to the first suggestion
+            console.log("Set company name suggestion:", data.suggestions[0]);
+          } else {
+            setNewShopName(""); // Clear name if no suggestions found
+            console.log("No company name suggestions found.");
+          }
+          // --- END MODIFICATION ---
+        }
+      } else {
+        console.error("Failed to fetch shop suggestions:", response.statusText);
+        // setShopSuggestions([]);
+        setNewShopName(""); // Clear name on fetch failure
+      }
+    } catch (fetchError) {
+      console.error("Error fetching shop suggestions:", fetchError);
+      // setShopSuggestions([]);
+      setNewShopName(""); // Clear name on fetch error
+    }
+  }, []); // useCallback dependencies are empty
+
+  // Effect to fetch suggestions when location changes (debounced)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (newShopLocation && newShopLocation.trim().length >= 5) {
+        if (newShopLatitude !== null && newShopLongitude !== null) {
+             fetchShopSuggestions(newShopLocation);
+        }
+      } else {
+        // setShopSuggestions([]); // No longer storing suggestions array
+        setNewShopName(""); // Clear name if location is too short or empty
+      }
+    }, 700); // Fetch 700ms after user stops typing location or selects from Autocomplete
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [newShopLocation, newShopLatitude, newShopLongitude, fetchShopSuggestions]);
+
+  // No longer needed:
+  // const handleSuggestionSelect = (selectedValue) => { ... };
+  // --- End Shop Name Suggestion Logic ---
+
 
   if (!MAP_API_KEY) {
     return <div className="pilocations-container error">Google Maps API Key is missing. Please configure REACT_APP_GOOGLE_MAPS_API_KEY.</div>;
   }
 
-  // Display loading indicator while fetching initial data
   if (loading) {
     return <div className="pilocations-container"><p style={{ textAlign: 'center', marginTop: '20px' }}>Loading...</p></div>;
   }
 
-  // Display error message if fetching failed
   if (error) {
       return <div className="pilocations-container"><p className="error">Map Error: {error}</p></div>;
   }
 
-  // Render map and controls once loading is complete and no error
   return (
     <div className="pilocations-container">
       <h1>Pi Coin Accepted Locations</h1>
-      {/* Error display is handled above */}
 
-      {/* Button to toggle Add Shop form */}
       <button onClick={() => setShowAddShopForm(!showAddShopForm)} className="btn btn-primary mb-3">
         {showAddShopForm ? 'Cancel Adding Shop' : 'Add New Shop'}
       </button>
 
-      {/* Conditionally render Add Shop form */}
-      {/* Note: Autocomplete might not work correctly here as LoadScript is below */}
       {showAddShopForm && (
         <div className="add-shop-form card mb-4 p-3">
           <h2>Add Your Shop</h2>
           <form onSubmit={handleAddShopSubmit}>
+            {/* Name Input Field (Always Text) */}
             <div className="mb-3">
-              <label htmlFor="newShopName" className="form-label">Shop Name *</label>
-              <input type="text" id="newShopName" className="form-control" value={newShopName} onChange={(e) => setNewShopName(e.target.value)} required />
+              {/* MODIFIED Label */}
+              <label htmlFor="newShopName" className="form-label">Company *</label>
+              <input
+                type="text"
+                id="newShopName"
+                className="form-control"
+                // MODIFIED Placeholder
+                placeholder="Company Name (Auto-suggested after address)"
+                value={newShopName}
+                onChange={(e) => setNewShopName(e.target.value)}
+                required
+                disabled={addShopLoading}
+              />
             </div>
+
+            {/* REMOVED Separate Suggestion Dropdown */}
+
+            {/* Category Dropdown */}
             <div className="mb-3">
                <label htmlFor="newShopCategory" className="form-label">Category *</label>
-               <select id="newShopCategory" className="form-select" value={newShopCategory} onChange={(e) => setNewShopCategory(e.target.value)} required>
+               <select id="newShopCategory" className="form-select" value={newShopCategory} onChange={(e) => setNewShopCategory(e.target.value)} required disabled={addShopLoading}>
                  <option value="" disabled>-- Select a Category --</option>
                  {availableCategories.map(category => (
                    <option key={category} value={category}>
-                     {/* Capitalize first letter for display */}
                      {category.charAt(0).toUpperCase() + category.slice(1)}
                    </option>
                  ))}
                </select>
             </div>
+
+            {/* Location Autocomplete */}
             <div className="mb-3">
               <label htmlFor="newShopLocation" className="form-label">Location *</label>
-              {/* Autocomplete might need LoadScript wrapping it if used independently */}
               <Autocomplete onLoad={onAutocompleteLoad} onPlaceChanged={onPlaceChanged}>
                 <input
                   type="text"
@@ -255,14 +328,17 @@ function Pilocations() {
                   className="form-control"
                   placeholder="Enter shop address"
                   value={newShopLocation}
-                  onChange={(e) => setNewShopLocation(e.target.value)} // Allow manual typing too
+                  onChange={(e) => setNewShopLocation(e.target.value)}
                   required
+                  disabled={addShopLoading}
                 />
               </Autocomplete>
             </div>
+
+            {/* Type Input */}
              <div className="mb-3">
                <label htmlFor="newShopType" className="form-label">Type</label>
-               <input type="text" id="newShopType" className="form-control" value={newShopType} onChange={(e) => setNewShopType(e.target.value)} placeholder="e.g., Shop, Service"/>
+               <input type="text" id="newShopType" className="form-control" value={newShopType} onChange={(e) => setNewShopType(e.target.value)} placeholder="e.g., Shop, Service" disabled={addShopLoading}/>
              </div>
 
             {addShopError && <p className="error text-danger">Error: {addShopError}</p>}
@@ -276,17 +352,14 @@ function Pilocations() {
 
       {/* Map Container */}
       <div className="map-container">
-        {/* Wrap only the map container and its contents with LoadScript */}
         <LoadScript googleMapsApiKey={MAP_API_KEY} libraries={LIBRARIES}>
-          <> {/* Fragment needed inside LoadScript */}
+          <>
             <div className="controls">
               <label htmlFor="category-filter">Filter by category:</label>
               <select id="category-filter" className="form-select form-select-sm" value={selectedCategory} onChange={handleCategoryChange}>
                 <option value="all">All</option>
-                {/* Populate options dynamically */}
                 {availableCategories.map(category => (
                   <option key={category} value={category}>
-                    {/* Capitalize first letter for display */}
                     {category.charAt(0).toUpperCase() + category.slice(1)}
                   </option>
                 ))}
@@ -299,32 +372,29 @@ function Pilocations() {
               onLoad={onLoad}
               onUnmount={onUnmount}
             >
-              {/* Render Markers only when map is loaded */}
-              {map && filteredWinkels.map((shop) => { // Removed !loading check here as parent handles loading state
+              {map && filteredWinkels.map((shop) => {
                 const position = { lat: shop.latitude, lng: shop.longitude };
                 const iconSize = window.google && window.google.maps ? new window.google.maps.Size(40, 40) : undefined;
                 return (
                   <Marker
-                    key={shop._id} // Use MongoDB _id as key
+                    key={shop._id}
                     position={position}
-                    title={shop.name || 'Name unknown'} // Use 'name' field
+                    title={shop.name || 'Name unknown'}
                     icon={iconSize ? { url: ICON_URL, scaledSize: iconSize } : undefined}
-                    onClick={() => handleMarkerClick(shop)} // Pass the shop object
+                    onClick={() => handleMarkerClick(shop)}
                   />
                 );
               })}
 
-              {/* Render InfoWindow only when map is loaded and a shop is selected */}
               {map && selectedWinkel && (
                 <InfoWindow
                   position={{ lat: selectedWinkel.latitude, lng: selectedWinkel.longitude }}
                   onCloseClick={handleInfoWindowClose}
                 >
                   <div className="info-window-content">
-                    <h3>{selectedWinkel.name || "Name unknown"}</h3> {/* Use name */}
+                    <h3>{selectedWinkel.name || "Name unknown"}</h3>
                     <p>{selectedWinkel.location || "Location unknown"}</p>
                     <p>Category: {selectedWinkel.category || "Unknown"}</p>
-                    {/* Add link to user profile if userId exists */}
                     {selectedWinkel.userId && (
                       <p>Added by: <a href={`/profile/${selectedWinkel.userId}`} target="_blank" rel="noopener noreferrer">View Profile</a></p>
                     )}
@@ -338,9 +408,8 @@ function Pilocations() {
                   </div>
                 </InfoWindow>
               )}
-              {/* Loading messages removed */}
             </GoogleMap>
-          </> {/* Close Fragment */}
+          </>
         </LoadScript>
       </div>
     </div>
