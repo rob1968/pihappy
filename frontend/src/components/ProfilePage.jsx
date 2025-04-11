@@ -11,26 +11,25 @@ function ProfilePage() {
   // Removed loadingShops state
   const [error, setError] = useState(null); // General page loading errors
   const [isEditingProfile, setIsEditingProfile] = useState(false);
-  // <<< MODIFIED: Add full_country_name to edit form state >>>
   const [editFormData, setEditFormData] = useState({ naam: '', land: '', full_country_name: '', language: '' });
   const [editError, setEditError] = useState(null); // Profile editing specific errors
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [countries, setCountries] = useState([]); // State for country list
 
-  // Fetch profile data
-  useEffect(() => {
-    setLoadingProfile(true);
+  // <<< Function to fetch profile data >>>
+  const fetchProfile = () => {
+    setLoadingProfile(true); // Set loading true when fetching
+    setError(null); // Clear previous errors
     const profileApiUrl = userId ? `/api/profile/${userId}` : '/api/profile';
-    fetch(profileApiUrl, { credentials: 'include' }) // <<< Added credentials
+    fetch(profileApiUrl, { credentials: 'include' })
       .then(response => {
         if (!response.ok) {
           if (response.status === 401) {
              throw new Error('Not logged in. Please log in to view your profile.');
           }
-          // Try to get error message from backend
           return response.json().then(errData => {
              throw new Error(errData.error || `HTTP error! status: ${response.status}`);
-          }).catch(() => { // Fallback if response is not JSON
+          }).catch(() => {
              throw new Error(`HTTP error! status: ${response.status}`);
           });
         }
@@ -38,14 +37,16 @@ function ProfilePage() {
       })
       .then(data => {
         setProfile(data);
-        // Initialize edit form data when profile loads
-        // <<< MODIFIED: Initialize full_country_name as well >>>
-        setEditFormData({
-            naam: data.naam || '',
-            land: data.land || '',
-            full_country_name: data.full_land_name || '', // Use full name from profile if available
-            language: data.language || ''
-        });
+        // Initialize edit form data only if not currently editing
+        // This prevents overwriting user edits if a background fetch occurs
+        if (!isEditingProfile) {
+            setEditFormData({
+                naam: data.naam || '',
+                land: data.land || '',
+                full_country_name: data.full_land_name || '',
+                language: data.language || ''
+            });
+        }
         setError(null);
       })
       .catch(err => {
@@ -56,7 +57,13 @@ function ProfilePage() {
       .finally(() => {
         setLoadingProfile(false);
       });
-  }, [userId]);
+  };
+
+  // Fetch profile data on initial load or when userId changes
+  useEffect(() => {
+    fetchProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]); // Depend only on userId
 
   // Fetch countries for the dropdown
   useEffect(() => {
@@ -78,7 +85,7 @@ function ProfilePage() {
         setError(prevError => prevError ? `${prevError}\nFailed to load country list.` : 'Failed to load country list.');
         setCountries([]);
       });
-  }, []);
+  }, []); // Fetch countries only once on mount
 
   if (loadingProfile) {
     return <div className="profile-container"><p>Loading profile...</p></div>;
@@ -94,11 +101,11 @@ function ProfilePage() {
 
   // --- Edit Profile Handlers ---
   const handleProfileEditClick = () => {
-    // Re-initialize form data with current profile values when edit starts
+    // Initialize form data with current profile values when edit starts
     setEditFormData({
       naam: profile?.naam || '',
       land: profile?.land || '',
-      full_country_name: profile?.full_land_name || '', // <<< Initialize full name
+      full_country_name: profile?.full_land_name || '',
       language: profile?.language || '',
     });
     setEditError(null);
@@ -110,21 +117,18 @@ function ProfilePage() {
     setEditError(null);
   };
 
-  // <<< MODIFIED: handleProfileInputChange to handle country selection specifically >>>
   const handleProfileInputChange = (event) => {
     const { name, value } = event.target;
 
     if (name === 'land') {
-      // If country code changes, find the full name and update both states
       const selectedLandObject = countries.find(c => c.code.toLowerCase() === value);
       const fullCountryName = selectedLandObject ? selectedLandObject.naam : '';
       setEditFormData(prevData => ({
         ...prevData,
-        land: value, // Update the code
-        full_country_name: fullCountryName // Update the full name
+        land: value,
+        full_country_name: fullCountryName
       }));
     } else {
-      // For other fields, update normally
       setEditFormData(prevData => ({
         ...prevData,
         [name]: value,
@@ -136,15 +140,13 @@ function ProfilePage() {
     setIsSavingProfile(true);
     setEditError(null);
 
-    // <<< MODIFIED: Include full_country_name in dataToSave >>>
     const dataToSave = {
         naam: editFormData.naam,
         land: editFormData.land,
-        full_country_name: editFormData.full_country_name, // Send full name
+        full_country_name: editFormData.full_country_name,
         language: editFormData.language,
     };
 
-    // Validate that full_country_name is not empty if land is set (unless land is 'other')
     if (dataToSave.land && dataToSave.land !== 'other' && !dataToSave.full_country_name) {
         setEditError("Could not determine full country name for the selected code. Please re-select the country.");
         setIsSavingProfile(false);
@@ -157,7 +159,7 @@ function ProfilePage() {
       headers: {
         'Content-Type': 'application/json',
       },
-      credentials: 'include', // <<< Added credentials
+      credentials: 'include',
       body: JSON.stringify(dataToSave),
     })
     .then(response => {
@@ -169,19 +171,10 @@ function ProfilePage() {
       return response.json();
     })
     .then(data => {
-      // <<< MODIFIED: Update profile state with the full user object returned >>>
-      // Assuming the backend returns the updated user object under the 'user' key
-      if (data.user) {
-          setProfile(data.user);
-      } else {
-          // Fallback: manually update fields if backend response format differs
-          setProfile(prevProfile => ({
-              ...prevProfile,
-              ...dataToSave // Update with saved data (might miss backend-derived fields)
-          }));
-          console.warn("Backend did not return updated user object under 'user' key. Manually updating state.");
-      }
-      setIsEditingProfile(false);
+      setIsEditingProfile(false); // Exit edit mode first
+      fetchProfile(); // <<< Re-fetch profile data to get latest updates >>>
+      // Optionally show a success message (could be state or just console log)
+      console.log("Profile updated successfully", data);
     })
     .catch(err => {
       console.error("Error updating profile:", err);
@@ -195,7 +188,7 @@ function ProfilePage() {
   // --- Logout Handler ---
   const handleLogout = async () => {
     try {
-      const response = await fetch('/api/logout', { method: 'POST', credentials: 'include' }); // <<< Added credentials
+      const response = await fetch('/api/logout', { method: 'POST', credentials: 'include' });
       if (response.ok) {
         window.location.href = '/';
       } else {
@@ -220,7 +213,6 @@ function ProfilePage() {
   };
 
   // --- Render Profile ---
-  // <<< MODIFIED: Use full_land_name from profile state if available >>>
   const displayCountryName = profile?.full_land_name || profile?.land || 'N/A';
   const displayLanguageName = languageCodeToName[profile?.language] || profile?.language || 'N/A';
 
@@ -268,16 +260,16 @@ function ProfilePage() {
                    <select
                      className="form-select"
                      id="editLand"
-                     name="land" // Name corresponds to the key in editFormData for the CODE
-                     value={editFormData.land} // Value is the country CODE
-                     onChange={handleProfileInputChange} // Use the modified handler
+                     name="land"
+                     value={editFormData.land}
+                     onChange={handleProfileInputChange}
                      required
                    >
                      <option value="" disabled>Select a country...</option>
                      {countries.length > 0 ? (
                        countries.map((country) => (
                          <option key={country.code} value={country.code.toLowerCase()}>
-                           {country.naam} {/* Display country name */}
+                           {country.naam}
                          </option>
                        ))
                      ) : (
@@ -318,12 +310,7 @@ function ProfilePage() {
             <>
               <p><strong>Name:</strong> {profile.naam || 'N/A'}</p>
               <p><strong>Email:</strong> {profile.email || 'N/A'}</p>
-              {/* <<< MODIFIED: Display full name if available >>> */}
               <p><strong>Country:</strong> {displayCountryName}</p>
-              {/* ADDED: Explicitly show full_land_name if it exists */}
-              {profile?.full_land_name && (
-                <p><strong>Full Country Name (DB):</strong> {profile.full_land_name}</p>
-              )}
               <p><strong>Preferred Language:</strong> {displayLanguageName}</p>
             </>
           )}
