@@ -22,7 +22,7 @@ function Pilocations() {
   const [error, setError] = useState(null); // For map loading errors
   const [loading, setLoading] = useState(true); // For map data loading
   const [availableCategories, setAvailableCategories] = useState([]); // State for categories dropdown
-  const [initialMapCenter, setInitialMapCenter] = useState(DEFAULT_MAP_CENTER); // <<< ADDED: State for initial center
+  const [initialMapCenter, setInitialMapCenter] = useState(null); // <<< Initialize center as null
 
   // State for the "Add Shop" form
   const [showAddShopForm, setShowAddShopForm] = useState(false);
@@ -50,39 +50,41 @@ function Pilocations() {
     setMap(null);
   }, []);
 
-  // <<< ADDED: Fetch user profile to set initial map center
+  // Fetch user profile to set initial map center
   useEffect(() => {
     fetch('/api/profile', { credentials: 'include' }) // Fetch own profile
       .then(response => {
         if (response.ok) {
           return response.json();
         }
-        // Don't throw error if profile fetch fails, just use default center
         console.warn(`Failed to fetch profile: ${response.status}`);
         return null;
       })
       .then(profileData => {
         if (profileData && profileData.country_center_lat && profileData.country_center_lng) {
-          console.log(`Setting initial map center based on user country: ${profileData.land}`);
+          console.log(`Setting initial map center based on user country: ${profileData.full_land_name || profileData.land}`);
           setInitialMapCenter({
             lat: profileData.country_center_lat,
             lng: profileData.country_center_lng
           });
         } else {
           console.log("Using default map center.");
-          setInitialMapCenter(DEFAULT_MAP_CENTER); // Ensure default is set if fetch fails or data missing
+          setInitialMapCenter(DEFAULT_MAP_CENTER);
         }
       })
       .catch(err => {
         console.error("Error fetching profile:", err);
-        setInitialMapCenter(DEFAULT_MAP_CENTER); // Use default on error
+        setInitialMapCenter(DEFAULT_MAP_CENTER);
       });
   }, []); // Run only once on mount
 
   // Fetch shops data - runs on initial load and when refreshData changes
   useEffect(() => {
+    // Only fetch shops once the initial center is determined (or defaulted)
+    if (!initialMapCenter) return;
+
     setLoading(true);
-    fetch('/api/shops', { credentials: 'include' }) // <<< ADDED credentials here too if needed
+    fetch('/api/shops', { credentials: 'include' })
       .then(response => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -108,7 +110,7 @@ function Pilocations() {
       .finally(() => {
         setLoading(false);
       });
-  }, [refreshData]);
+  }, [refreshData, initialMapCenter]); // <<< Depend on initialMapCenter
 
   // Filter shops when category or shops list changes
   useEffect(() => {
@@ -122,7 +124,7 @@ function Pilocations() {
 
   // Fetch categories for the dropdown
   useEffect(() => {
-    fetch('/api/categories', { credentials: 'include' }) // <<< ADDED credentials here too if needed
+    fetch('/api/categories', { credentials: 'include' })
       .then(response => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -264,7 +266,7 @@ function Pilocations() {
       return;
     }
     try {
-      const response = await fetch(`/api/shops/suggestions?address=${encodeURIComponent(address)}`, { credentials: 'include' }); // <<< ADDED credentials
+      const response = await fetch(`/api/shops/suggestions?address=${encodeURIComponent(address)}`, { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         if (data.error) {
@@ -272,8 +274,9 @@ function Pilocations() {
           setShopSuggestions([]);
         } else {
           setShopSuggestions(data.suggestions || []);
+          // <<< MODIFIED: Clear name when suggestions load to force selection >>>
           if (data.suggestions && data.suggestions.length > 0) {
-             setNewShopName(""); // Clear name field when suggestions load
+             setNewShopName("");
           }
         }
       } else {
@@ -311,8 +314,8 @@ function Pilocations() {
     return <div className="pilocations-container error">Google Maps API Key is missing. Please configure REACT_APP_GOOGLE_MAPS_API_KEY.</div>;
   }
 
-  // <<< MODIFIED: Use initialMapCenter state for loading check too
-  if (loading || !initialMapCenter) {
+  // Use initialMapCenter state for loading check too
+  if (loading || !initialMapCenter) { // <<< Wait for initial center
     return <div className="pilocations-container"><p style={{ textAlign: 'center', marginTop: '20px' }}>Loading map data...</p></div>;
   }
 
@@ -333,15 +336,15 @@ function Pilocations() {
           <h2>Add Your Shop</h2>
           <form onSubmit={handleAddShopSubmit}>
 
-            {/* Conditionally render Input or Select for Company Name */}
+            {/* <<< MODIFIED: Conditionally render Input or Select for Company Name */}
             <div className="mb-3">
               <label htmlFor="newShopName" className="form-label">Company *</label>
               {shopSuggestions.length > 0 ? (
                 <select
                   id="newShopName"
                   className="form-select"
-                  value={newShopName}
-                  onChange={(e) => setNewShopName(e.target.value)}
+                  value={newShopName} // Controlled component
+                  onChange={(e) => setNewShopName(e.target.value)} // Update state on change
                   required
                   disabled={addShopLoading}
                 >
@@ -365,6 +368,8 @@ function Pilocations() {
                 />
               )}
             </div>
+
+            {/* REMOVED Separate Suggestion Dropdown */}
 
             {/* Category Dropdown */}
             <div className="mb-3">
@@ -413,7 +418,6 @@ function Pilocations() {
 
       {/* Map Container */}
       <div className="map-container">
-        {/* <<< MODIFIED: Use initialMapCenter state in GoogleMap component */}
         <LoadScript googleMapsApiKey={MAP_API_KEY} libraries={LIBRARIES}>
           <>
             <div className="controls">
@@ -429,8 +433,8 @@ function Pilocations() {
             </div>
             <GoogleMap
               mapContainerStyle={containerStyle}
-              center={initialMapCenter} // <<< Use state variable here
-              zoom={10} // You might want to adjust zoom based on country/region
+              center={initialMapCenter} // Use state variable here
+              zoom={10}
               onLoad={onLoad}
               onUnmount={onUnmount}
             >
