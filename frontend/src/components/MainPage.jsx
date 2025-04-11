@@ -10,7 +10,12 @@ const MainPage = () => {
     const [laatsteStemming, setLaatsteStemming] = useState(null); // Last mood voted
     const [stemmingToegestaan, setStemmingToegestaan] = useState(null); // Can vote mood? Initialize as null
     const [eigenFeedback, setEigenFeedback] = useState(''); // AI feedback for user
-    const [feedbackVisible, setFeedbackVisible] = useState(true);
+    // Initialize feedback visibility from localStorage, default to true
+    const [feedbackVisible, setFeedbackVisible] = useState(() => {
+        const storedPreference = localStorage.getItem('feedbackVisible');
+        // Return true if nothing stored or if stored value is 'true', otherwise false
+        return storedPreference === null || storedPreference === 'true';
+    });
     const [chatMessages, setChatMessages] = useState([]); // Keep for initial fetch
     // chatInput, searchInput moved to ChatInterface
     // Community state removed (moved to CommunityPage.jsx)
@@ -140,7 +145,10 @@ const MainPage = () => {
     };
 
     const toggleFeedback = () => {
-        setFeedbackVisible(!feedbackVisible);
+        const newVisibility = !feedbackVisible;
+        setFeedbackVisible(newVisibility);
+        // Store the new preference in localStorage
+        localStorage.setItem('feedbackVisible', newVisibility);
         // TODO: Play sound if turning visible and soundOn
     };
 

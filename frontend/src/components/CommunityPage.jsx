@@ -59,33 +59,41 @@ const CommunityPage = () => {
         }
     };
 
-    // Function moved from MainPage
-    const analyseCommunity = async () => {
-        console.log("Analyzing community input...");
-        setAnalyseResultaat("⏳ Analyzing...");
-
+    // Function to fetch and display the latest analysis result
+    const fetchLatestAnalysis = async () => {
+        console.log("Fetching latest community analysis...");
+        setAnalyseResultaat("⏳ Loading analysis..."); // Indicate loading
         try {
+            // We can reuse the analyseCommunityInput service function if its backend
+            // route now fetches the latest stored result.
+            // Assuming the service function was updated or we call the endpoint directly:
             const response = await fetch('/api/community_input/analyse', {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                },
-                credentials: 'include'
+                 method: 'GET',
+                 headers: { 'Accept': 'application/json' },
+                 credentials: 'include'
             });
-
+             if (!response.ok) {
+                 throw new Error(`HTTP error! status: ${response.status}`);
+             }
             const data = await response.json();
 
-            if (response.ok) {
-                console.log("Analysis successful:", data.ai_feedback);
-                setAnalyseResultaat(data.ai_feedback);
+            if (data.status === 'success') {
+                console.log("Latest analysis fetched:", data.ai_feedback);
+                setAnalyseResultaat(data.ai_feedback || "No analysis available yet."); // Show message if feedback is empty
             } else {
-                console.error("Failed to analyse community input:", response.status, data.message);
-                setAnalyseResultaat(`Error: ${data.message || response.statusText}`);
+                 console.error("Error in analysis response:", data.message);
+                 setAnalyseResultaat(`Error: ${data.message || 'Could not load analysis'}`);
             }
         } catch (error) {
-            console.error("Error analysing community input:", error);
+            console.error("Error fetching analysis:", error);
             setAnalyseResultaat(`Network Error: ${error.message}`);
         }
+    };
+
+    // Rename the old analyseCommunity function to avoid confusion
+    // This button now just triggers a refresh of the displayed analysis
+    const refreshAnalysisDisplay = () => {
+        fetchLatestAnalysis();
     };
 
     // Function moved from MainPage
@@ -156,6 +164,7 @@ const CommunityPage = () => {
     useEffect(() => {
         refreshCommunityStats();
         fetchInputStatus();
+        fetchLatestAnalysis(); // Fetch latest analysis on initial load
     }, []); // Empty dependency array ensures this runs only once on mount
 
     // Helper function to calculate remaining time
@@ -224,7 +233,7 @@ const CommunityPage = () => {
                 </div>
             )}
             {/* Keep other buttons separate */}
-            <button id="analyseCommunityButton" onClick={analyseCommunity} style={{ marginRight: '10px' }}>🔍 Analyse Community Input</button>
+            <button id="analyseCommunityButton" onClick={refreshAnalysisDisplay} style={{ marginRight: '10px' }}>🔍 Refresh Analysis Display</button>
             <button id="refreshStatsButton" onClick={refreshCommunityStats}>🔄 Refresh Stats</button>
 
 
