@@ -7,7 +7,7 @@ const App = () => {
   const [communityInput, setCommunityInput] = useState('');
   const [feedbackVisible, setFeedbackVisible] = useState(true);
   const [feedbackText, setFeedbackText] = useState('');
-  const [soundOn, setSoundOn] = useState(() => localStorage.getItem('geluidAan') === 'true');
+  const [soundOn, setSoundOn] = useState(() => localStorage.getItem('soundOn') === 'true'); // Changed key to English
   const [laatsteStemming, setLaatsteStemming] = useState(null);
   const chatBoxRef = useRef(null);
 
@@ -18,7 +18,7 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('geluidAan', soundOn);
+    localStorage.setItem('soundOn', soundOn); // Changed key to English
   }, [soundOn]);
 
   const fetchChatHistory = () => {
@@ -48,7 +48,7 @@ const App = () => {
 
   const handleCommunitySend = () => {
     if (communityInput.trim().split(/\s+/).length > 10) {
-      alert('⚠️ Maximaal 10 woorden toegestaan.');
+      alert('⚠️ Maximum 10 words allowed.'); // Translated alert
       return;
     }
     setCommunityInput('');
@@ -138,7 +138,7 @@ const App = () => {
       >
         {filteredMessages.map((msg, idx) => (
           <div key={idx} className={`message ${msg.role} my-2 p-2 rounded ${msg.role === 'user' ? 'bg-blue-100 text-right' : 'bg-gray-200 text-left'}`}>
-            <div className="text-xs text-gray-500">🕒 {new Date(msg.time).toLocaleTimeString('nl-NL')}</div>
+            <div className="text-xs text-gray-500">🕒 {new Date(msg.time).toLocaleTimeString('en-US')}</div> // Changed locale to en-US
             <strong>{msg.role === 'user' ? 'You' : 'AI'}:</strong> {msg.content}
           </div>
         ))}

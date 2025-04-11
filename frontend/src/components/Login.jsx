@@ -27,11 +27,11 @@ const Login = () => {
         // alert("Login succesvol!"); // Remove alert
         navigate("/"); // Redirect to home page
       } else {
-        alert(`Fout bij inloggen: ${result.message}`);
+        alert(`Login Error: ${result.message}`);
       }
     } catch (error) {
       console.error("Error during login:", error);
-      alert("Er is een fout opgetreden. Probeer het later opnieuw.");
+      alert("An error occurred. Please try again later.");
     }
   };
 
@@ -59,7 +59,7 @@ const Login = () => {
 
               <div className="mb-3">
                 <label htmlFor="password" className="form-label">
-                  🔑 Wachtwoord <span className="text-danger">*</span>
+                  🔑 Password <span className="text-danger">*</span>
                 </label>
                 <input
                   type="password"
@@ -73,12 +73,12 @@ const Login = () => {
               </div>
 
               <button type="submit" className="btn btn-primary w-100 mt-3">
-                ✅ Inloggen
+                ✅ Login
               </button>
             </form>
 
             <p className="text-center mt-3">
-              Heb je nog geen account? <a href="/register">Registreren</a>
+              Don't have an account yet? <a href="/register">Register</a>
             </p>
           </div>
         </div>

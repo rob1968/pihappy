@@ -13,7 +13,7 @@ const Register = () => {
     fetch("/api/landen")
       .then((res) => res.json())
       .then((data) => setLanden(data.landen || []))
-      .catch((err) => console.error("Fout bij ophalen landen:", err));
+      .catch((err) => console.error("Error fetching countries:", err));
   }, []);
 
   // Removed handleWinkelChange handler
@@ -30,11 +30,11 @@ const Register = () => {
     })
       .then((res) => res.json())
       .then((result) => {
-        alert(result.status === "success" ? "Registratie succesvol!" : `Fout: ${result.message}`);
+        alert(result.status === "success" ? "Registration successful!" : `Error: ${result.message}`);
       })
       .catch((err) => {
         console.error("Error submitting form:", err);
-        alert("Er is een fout opgetreden. Probeer het later opnieuw.");
+        alert("An error occurred. Please try again later.");
       });
   };
 
@@ -46,7 +46,7 @@ const Register = () => {
             <h2 className="text-center">🔐 PiHappy</h2>
             <form onSubmit={handleSubmit}>
               <div className="mb-3">
-                <label htmlFor="naam" className="form-label">👤 Naam *</label>
+                <label htmlFor="naam" className="form-label">👤 Name *</label>
                 <input type="text" id="naam" name="naam" className="form-control" required autoFocus />
               </div>
 
@@ -56,7 +56,7 @@ const Register = () => {
               </div>
 
               <div className="mb-3">
-                <label htmlFor="wachtwoord" className="form-label">🔑 Wachtwoord</label>
+                <label htmlFor="wachtwoord" className="form-label">🔑 Password</label>
                 <input
                 type="password"
                 id="wachtwoord"
@@ -65,12 +65,12 @@ const Register = () => {
                 required
                 minLength="6"
                 pattern=".{6,}"
-                title="Minstens 6 tekens"
+                title="At least 6 characters"
                 />
               </div>
 
               <div className="mb-3">
-                <label htmlFor="land" className="form-label">🌍 Kies je land</label>
+                <label htmlFor="land" className="form-label">🌍 Choose your country</label>
                 <select
                   id="land"
                   name="land"
@@ -79,23 +79,23 @@ const Register = () => {
                   onChange={(e) => setGekozenLand(e.target.value)}
                   required
                 >
-                  <option value="" disabled>🌐 Selecteer een land...</option>
+                  <option value="" disabled>🌐 Select a country...</option>
                   {landen.map((land) => (
                     <option key={land.code} value={land.code.toLowerCase()}>
                       {land.naam}
                     </option>
                   ))}
-                  <option value="other">🌎 Ander</option>
+                  <option value="other">🌎 Other</option>
                 </select>
               </div>
 
               {/* Removed "Heb je een winkel?" dropdown and conditional shop details form */}
 
-              <button type="submit" className="btn btn-primary w-100 mt-3">✅ Registreren</button>
+              <button type="submit" className="btn btn-primary w-100 mt-3">✅ Register</button>
             </form>
 
             <p className="text-center mt-3">
-              Heb je al een account? <a href="/auth/login">Inloggen</a>
+              Already have an account? <a href="/auth/login">Login</a>
             </p>
           </div>
         </div>

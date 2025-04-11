@@ -30,11 +30,11 @@ function AddShopForm() {
 
   return (
     <form onSubmit={handleSubmit}>
-      <input placeholder="Naam" value={name} onChange={e => setName(e.target.value)} />
-      <input placeholder="Categorie" value={category} onChange={e => setCategory(e.target.value)} />
-      <input placeholder="Locatie" value={location} onChange={e => setLocation(e.target.value)} />
+      <input placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
+      <input placeholder="Category" value={category} onChange={e => setCategory(e.target.value)} />
+      <input placeholder="Location" value={location} onChange={e => setLocation(e.target.value)} />
       <input placeholder="Type" value={type} onChange={e => setType(e.target.value)} />
-      <button type="submit">Winkel opslaan</button>
+      <button type="submit">Save Shop</button>
     </form>
   );
 }

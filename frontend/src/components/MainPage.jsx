@@ -523,7 +523,7 @@ const MainPage = () => {
                      // Use msg.tijd for key if available and unique, otherwise fallback to index
                      <div key={msg.tijd || index} className={`message ${msg.role}`} data-content={msg.content.toLowerCase()}>
                         {/* Basic message structure - needs date/time formatting */}
-                        <div style={{ fontSize: '0.9em', color: 'gray' }}>🕒 {new Date(msg.tijd).toLocaleTimeString('nl-NL')}</div>
+                        <div style={{ fontSize: '0.9em', color: 'gray' }}>🕒 {new Date(msg.tijd).toLocaleTimeString('en-US')}</div>
                         <strong>{msg.role === "user" ? "You" : msg.role === "assistant" ? "AI" : "⚠️ Error"}:</strong>
                         {/* Add data-original-text attribute */}
                         <span className="bericht-tekst" data-original-text={msg.content}>{msg.content}</span>
@@ -542,27 +542,71 @@ const MainPage = () => {
                 ))}
             </div>
 
-            {/* Container for input and send button */}
-            <div className="chat-input-container">
-                <input
-                    type="text"
+            {/* WhatsApp-style chat input container */}
+            <div style={{
+                display: 'flex',
+                alignItems: 'flex-end', // Align items to bottom as textarea grows
+                padding: '8px 12px',
+                border: '1px solid #ccc', // Subtle border
+                borderRadius: '25px',    // Rounded corners
+                backgroundColor: '#f0f2f5', // Light grey background like WhatsApp
+                marginTop: '10px'       // Space above input
+            }}>
+                <textarea
                     id="chatInput" // Keep ID
-                    placeholder="Ask a question..."
+                    placeholder="Ask a question... (max 250 characters)" // Updated placeholder
                     value={chatInput}
+                    maxLength={250} // Enforce character limit
                     onChange={(e) => setChatInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && !aiIsBezig && handleChatSubmit()}
+                    onInput={(e) => { // Auto-resize height
+                        e.target.style.height = 'auto'; // Reset height
+                        e.target.style.height = `${e.target.scrollHeight}px`; // Set to scroll height
+                    }}
+                    onKeyPress={(e) => {
+                        // Allow Shift+Enter for new lines, Enter alone submits
+                        if (e.key === 'Enter' && !e.shiftKey && !aiIsBezig) {
+                            e.preventDefault(); // Prevent default Enter behavior (new line)
+                            handleChatSubmit();
+                        }
+                    }}
                     disabled={aiIsBezig}
-                    className="chat-input-field" // Add class for styling
+                    style={{ // Styling for the textarea
+                        flexGrow: 1,           // Take available space
+                        border: 'none',        // No border inside the container
+                        outline: 'none',       // No focus outline
+                        backgroundColor: 'transparent', // Inherit container background
+                        resize: 'none',        // Disable manual resize handle
+                        overflowY: 'hidden',   // Hide scrollbar until needed
+                        minHeight: '24px',     // Minimum height matching button approx
+                        maxHeight: '120px',    // Optional: Limit max height
+                        padding: '6px 0',      // Vertical padding
+                        marginRight: '10px',   // Space between textarea and button
+                        lineHeight: '1.4',     // Adjust line height
+                        fontSize: '1rem'       // Standard font size
+                    }}
                 />
                 <button
                     id="sendButton" // Keep ID
                     onClick={handleChatSubmit}
                     disabled={aiIsBezig}
-                    className="chat-send-button" // Add class for styling
+                    style={{ // Styling for the send button
+                        border: 'none',
+                        backgroundColor: '#00a884', // WhatsApp-like green
+                        color: 'white',
+                        borderRadius: '50%',    // Circular button
+                        width: '40px',          // Fixed width
+                        height: '40px',         // Fixed height
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        fontSize: '1.5rem',     // Icon size
+                        flexShrink: 0          // Prevent button from shrinking
+                    }}
                     title="Send message"
                     aria-label="Send message"
                 >
-                    ▶️ {/* Send icon (e.g., paper plane) */}
+                    ➤ {/* Simple send icon */}
                 </button>
             </div>
 

@@ -72,8 +72,8 @@ function Pilocations() {
         setError(null); // Clear map loading error
       })
       .catch(err => {
-        console.error("Fout bij laden van shops:", err); // Updated error message
-        setError("Kon shops niet laden. Probeer het later opnieuw."); // Updated error message
+        console.error("Error loading shops:", err); // Translated error message
+        setError("Could not load shops. Please try again later."); // Translated error message
         setWinkels([]); // Clear shops on error
       })
       .finally(() => {
@@ -264,9 +264,9 @@ function Pilocations() {
           {/* Existing Map Container */}
           <div className="map-container">
           <div className="controls">
-            <label htmlFor="category-filter">Filter op categorie:</label>
+            <label htmlFor="category-filter">Filter by category:</label>
             <select id="category-filter" className="form-select form-select-sm" value={selectedCategory} onChange={handleCategoryChange}>
-              <option value="all">Alle</option>
+              <option value="all">All</option>
               {/* Populate options dynamically */}
               {availableCategories.map(category => (
                 <option key={category} value={category}>
@@ -295,7 +295,7 @@ function Pilocations() {
                 <Marker
                   key={shop._id} // Use MongoDB _id as key
                   position={position}
-                  title={shop.name || 'Naam onbekend'} // Use 'name' field
+                  title={shop.name || 'Name unknown'} // Use 'name' field
                   icon={iconSize ? { url: ICON_URL, scaledSize: iconSize } : undefined}
                   onClick={() => handleMarkerClick(shop)} // Pass the shop object
                 />
@@ -309,9 +309,9 @@ function Pilocations() {
                 onCloseClick={handleInfoWindowClose}
               >
                 <div className="info-window-content">
-                  <h3>{selectedWinkel.name || "Naam onbekend"}</h3> {/* Use name */}
-                  <p>{selectedWinkel.location || "Locatie onbekend"}</p>
-                  <p>Categorie: {selectedWinkel.category || "Onbekend"}</p>
+                  <h3>{selectedWinkel.name || "Name unknown"}</h3> {/* Use name */}
+                  <p>{selectedWinkel.location || "Location unknown"}</p>
+                  <p>Category: {selectedWinkel.category || "Unknown"}</p>
                   {/* Add link to user profile if userId exists */}
                   {selectedWinkel.userId && (
                     <p>Added by: <a href={`/profile/${selectedWinkel.userId}`} target="_blank" rel="noopener noreferrer">View Profile</a></p>
@@ -321,7 +321,7 @@ function Pilocations() {
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    Route plannen
+                    Plan Route
                   </a>
                 </div>
               </InfoWindow>

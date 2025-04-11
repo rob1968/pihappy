@@ -16,6 +16,7 @@ load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 client = MongoClient(MONGO_URI)
 db = client["pihappy"]
+journal_collection = db["journal"] # Add journal collection
 
 # 🧠 MongoDB replacements
 def laad_chatgeschiedenis(gebruiker_id):
@@ -106,9 +107,28 @@ def chat():
     target_language = language_map.get(taal_code, "English") # Default to English if map missing
     logger.debug(f"Chat: Target language for response: {target_language}") # Log target language
 
-    # Construct system prompt with language instruction
-    # Using a more direct instruction might be better
-    system_prompt = f"You are a helpful coach and motivator. Respond ONLY in {target_language}."
+    # --- Fetch latest mood ---
+    latest_mood = None
+    try:
+        # Find the most recent journal entry for the user, sorted by timestamp descending
+        latest_entry = journal_collection.find_one(
+            {"gebruiker_id": gebruiker_id},
+            sort=[("timestamp", -1)] # Sort by timestamp descending
+        )
+        if latest_entry and "stemming" in latest_entry:
+            latest_mood = latest_entry["stemming"]
+            logger.debug(f"Chat: Found latest mood for user {gebruiker_id}: {latest_mood}")
+        else:
+            logger.debug(f"Chat: No mood entry found for user {gebruiker_id}")
+    except Exception as mood_err:
+        logger.error(f"Chat: Error fetching mood for user {gebruiker_id}: {mood_err}", exc_info=True)
+
+    # --- Construct system prompt with language and mood instruction ---
+    system_prompt_base = "You are a helpful coach and motivator."
+    mood_context = f" The user is currently feeling '{latest_mood}'." if latest_mood else ""
+    language_instruction = f" Respond ONLY in {target_language}."
+    system_prompt = f"{system_prompt_base}{mood_context}{language_instruction}"
+
     logger.debug(f"Chat: System prompt: {system_prompt}") # Log system prompt
 
     # Prepare messages for OpenAI, adding language instruction to the latest user message

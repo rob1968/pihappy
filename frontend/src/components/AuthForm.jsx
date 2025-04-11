@@ -25,7 +25,7 @@ const AuthForm = () => {
       fetch("/api/landen")
         .then((res) => res.json())
         .then((data) => setLanden(data.landen || []))
-        .catch((err) => console.error("Fout bij ophalen landen:", err));
+        .catch((err) => console.error("Error fetching countries:", err));
     }
   }, [isLoginMode]); // Re-fetch if mode changes (though unlikely needed)
 
@@ -50,11 +50,11 @@ const AuthForm = () => {
           // This ensures the HomePageWrapper re-evaluates auth status with the new cookie.
           window.location.href = '/';
         } else {
-          alert(`Fout bij inloggen: ${result.message}`);
+          alert(`Login Error: ${result.message}`);
         }
       } catch (error) {
         console.error("Error during login:", error);
-        alert("Er is een fout opgetreden bij het inloggen. Probeer het later opnieuw.");
+        alert("An error occurred during login. Please try again later.");
       }
     } else {
       // --- Register Logic ---
@@ -72,7 +72,7 @@ const AuthForm = () => {
 
       // Removed shop-related validation
       if (!name || !email || !password || !gekozenLand) {
-          alert("Vul a.u.b. alle verplichte velden in.");
+          alert("Please fill in all required fields.");
           return;
       }
 
@@ -85,7 +85,7 @@ const AuthForm = () => {
         .then((res) => res.json())
         .then((result) => {
           if (result.status === "success") {
-            alert("Registratie succesvol! U kunt nu inloggen.");
+            alert("Registration successful! You can now log in.");
             // Switch to login mode after successful registration
             setIsLoginMode(true);
             // Clear registration-specific fields (optional)
@@ -94,12 +94,12 @@ const AuthForm = () => {
             setGekozenLand("");
             // Removed clearing of shop state
           } else {
-             alert(`Fout bij registreren: ${result.message}`);
+             alert(`Registration Error: ${result.message}`);
           }
         })
         .catch((err) => {
           console.error("Error submitting registration:", err);
-          alert("Er is een fout opgetreden bij het registreren. Probeer het later opnieuw.");
+          alert("An error occurred during registration. Please try again later.");
         });
     }
   };
@@ -119,7 +119,7 @@ const AuthForm = () => {
       <div className="col-md-6 col-lg-5">
         <div className="card shadow-lg">
           <div className="card-body">
-            <h2 className="text-center">🔐 {isLoginMode ? "Login" : "Registreren"}</h2>
+            <h2 className="text-center">🔐 {isLoginMode ? "Login" : "Register"}</h2>
             <form onSubmit={handleSubmit}>
               {/* --- Fields for Both Modes --- */}
               <div className="mb-3">
@@ -140,7 +140,7 @@ const AuthForm = () => {
 
               <div className="mb-3">
                 <label htmlFor="password" className="form-label">
-                  🔑 Wachtwoord <span className="text-danger">*</span>
+                  🔑 Password <span className="text-danger">*</span>
                 </label>
                 <input
                   type="password"
@@ -152,7 +152,7 @@ const AuthForm = () => {
                   required
                   minLength={isLoginMode ? undefined : 6} // Min length only for register
                   pattern={isLoginMode ? undefined : ".{6,}"}
-                  title={isLoginMode ? undefined : "Minstens 6 tekens"}
+                  title={isLoginMode ? undefined : "At least 6 characters"}
                 />
               </div>
 
@@ -161,7 +161,7 @@ const AuthForm = () => {
                 <>
                   <div className="mb-3">
                     <label htmlFor="naam" className="form-label">
-                      👤 Naam <span className="text-danger">*</span>
+                      👤 Name <span className="text-danger">*</span>
                     </label>
                     <input
                       type="text"
@@ -177,7 +177,7 @@ const AuthForm = () => {
 
                   <div className="mb-3">
                     <label htmlFor="land" className="form-label">
-                      🌍 Kies je land <span className="text-danger">*</span>
+                      🌍 Choose your country <span className="text-danger">*</span>
                     </label>
                     <select
                       id="land"
@@ -187,13 +187,13 @@ const AuthForm = () => {
                       onChange={(e) => setGekozenLand(e.target.value)}
                       required
                     >
-                      <option value="" disabled>🌐 Selecteer een land...</option>
+                      <option value="" disabled>🌐 Select a country...</option>
                       {landen.map((land) => (
                         <option key={land.code} value={land.code.toLowerCase()}>
                           {land.naam}
                         </option>
                       ))}
-                      <option value="other">🌎 Ander</option>
+                      <option value="other">🌎 Other</option>
                     </select>
                   </div>
 
@@ -203,15 +203,15 @@ const AuthForm = () => {
 
               {/* --- Submit Button --- */}
               <button type="submit" className="btn btn-primary w-100 mt-3">
-                ✅ {isLoginMode ? "Inloggen" : "Registreren"}
+                ✅ {isLoginMode ? "Login" : "Register"}
               </button>
             </form>
 
             {/* --- Toggle Link --- */}
             <p className="text-center mt-3">
-              {isLoginMode ? "Heb je nog geen account?" : "Heb je al een account?"}{" "}
+              {isLoginMode ? "Don't have an account yet?" : "Already have an account?"}{" "}
               <button type="button" className="btn btn-link p-0" onClick={toggleMode}>
-                {isLoginMode ? "Registreren" : "Inloggen"}
+                {isLoginMode ? "Register" : "Login"}
               </button>
             </p>
           </div>
