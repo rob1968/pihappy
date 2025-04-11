@@ -4,7 +4,7 @@ import { GoogleMap, LoadScript, Marker, InfoWindow, Autocomplete } from '@react-
 import './Pilocations.css'; // Import the CSS
 
 const MAP_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
-const MAP_CENTER = { lat: 52.3676, lng: 4.9041 }; // Amsterdam center
+const DEFAULT_MAP_CENTER = { lat: 52.3676, lng: 4.9041 }; // Amsterdam center as fallback
 const LIBRARIES = ["places"]; // Define libraries for LoadScript, including places for Autocomplete
 const ICON_URL = "https://www.pihappy.me/picoin.png";
 
@@ -22,6 +22,7 @@ function Pilocations() {
   const [error, setError] = useState(null); // For map loading errors
   const [loading, setLoading] = useState(true); // For map data loading
   const [availableCategories, setAvailableCategories] = useState([]); // State for categories dropdown
+  const [initialMapCenter, setInitialMapCenter] = useState(DEFAULT_MAP_CENTER); // <<< ADDED: State for initial center
 
   // State for the "Add Shop" form
   const [showAddShopForm, setShowAddShopForm] = useState(false);
@@ -49,10 +50,39 @@ function Pilocations() {
     setMap(null);
   }, []);
 
+  // <<< ADDED: Fetch user profile to set initial map center
+  useEffect(() => {
+    fetch('/api/profile', { credentials: 'include' }) // Fetch own profile
+      .then(response => {
+        if (response.ok) {
+          return response.json();
+        }
+        // Don't throw error if profile fetch fails, just use default center
+        console.warn(`Failed to fetch profile: ${response.status}`);
+        return null;
+      })
+      .then(profileData => {
+        if (profileData && profileData.country_center_lat && profileData.country_center_lng) {
+          console.log(`Setting initial map center based on user country: ${profileData.land}`);
+          setInitialMapCenter({
+            lat: profileData.country_center_lat,
+            lng: profileData.country_center_lng
+          });
+        } else {
+          console.log("Using default map center.");
+          setInitialMapCenter(DEFAULT_MAP_CENTER); // Ensure default is set if fetch fails or data missing
+        }
+      })
+      .catch(err => {
+        console.error("Error fetching profile:", err);
+        setInitialMapCenter(DEFAULT_MAP_CENTER); // Use default on error
+      });
+  }, []); // Run only once on mount
+
   // Fetch shops data - runs on initial load and when refreshData changes
   useEffect(() => {
     setLoading(true);
-    fetch('/api/shops')
+    fetch('/api/shops', { credentials: 'include' }) // <<< ADDED credentials here too if needed
       .then(response => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -92,7 +122,7 @@ function Pilocations() {
 
   // Fetch categories for the dropdown
   useEffect(() => {
-    fetch('/api/categories')
+    fetch('/api/categories', { credentials: 'include' }) // <<< ADDED credentials here too if needed
       .then(response => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -185,11 +215,21 @@ function Pilocations() {
       console.log("Shop added successfully:", newShop);
 
       // --- Pan map to new location ---
-      if (mapRef.current && submittedLat && submittedLng) {
-          console.log(`Panning map to: ${submittedLat}, ${submittedLng}`);
-          mapRef.current.panTo({ lat: submittedLat, lng: submittedLng });
-          // Optionally set zoom level
-          // mapRef.current.setZoom(15); // Example zoom level
+      const targetCoords = { lat: submittedLat, lng: submittedLng };
+      if (mapRef.current && targetCoords.lat && targetCoords.lng) {
+          console.log(`Attempting to pan map to: ${targetCoords.lat}, ${targetCoords.lng}`);
+          // Use setTimeout to allow map state to potentially update after refresh trigger
+          setTimeout(() => {
+              if (mapRef.current) { // Double-check ref still exists
+                 mapRef.current.panTo(targetCoords);
+                 // mapRef.current.setZoom(15); // Optional zoom
+                 console.log("Map panTo called.");
+              } else {
+                 console.warn("Map reference became null before panning could execute.");
+              }
+          }, 100); // 100ms delay, adjust if needed
+      } else {
+          console.warn("Map reference or coordinates missing, cannot pan.", { hasMapRef: !!mapRef.current, coords: targetCoords });
       }
       // --- End Pan map ---
 
@@ -224,7 +264,7 @@ function Pilocations() {
       return;
     }
     try {
-      const response = await fetch(`/api/shops/suggestions?address=${encodeURIComponent(address)}`);
+      const response = await fetch(`/api/shops/suggestions?address=${encodeURIComponent(address)}`, { credentials: 'include' }); // <<< ADDED credentials
       if (response.ok) {
         const data = await response.json();
         if (data.error) {
@@ -271,8 +311,9 @@ function Pilocations() {
     return <div className="pilocations-container error">Google Maps API Key is missing. Please configure REACT_APP_GOOGLE_MAPS_API_KEY.</div>;
   }
 
-  if (loading) {
-    return <div className="pilocations-container"><p style={{ textAlign: 'center', marginTop: '20px' }}>Loading...</p></div>;
+  // <<< MODIFIED: Use initialMapCenter state for loading check too
+  if (loading || !initialMapCenter) {
+    return <div className="pilocations-container"><p style={{ textAlign: 'center', marginTop: '20px' }}>Loading map data...</p></div>;
   }
 
   if (error) {
@@ -372,6 +413,7 @@ function Pilocations() {
 
       {/* Map Container */}
       <div className="map-container">
+        {/* <<< MODIFIED: Use initialMapCenter state in GoogleMap component */}
         <LoadScript googleMapsApiKey={MAP_API_KEY} libraries={LIBRARIES}>
           <>
             <div className="controls">
@@ -387,9 +429,9 @@ function Pilocations() {
             </div>
             <GoogleMap
               mapContainerStyle={containerStyle}
-              center={MAP_CENTER}
-              zoom={10}
-              onLoad={onLoad} // Use onLoad to get map instance
+              center={initialMapCenter} // <<< Use state variable here
+              zoom={10} // You might want to adjust zoom based on country/region
+              onLoad={onLoad}
               onUnmount={onUnmount}
             >
               {map && filteredWinkels.map((shop) => {
@@ -415,11 +457,9 @@ function Pilocations() {
                     <h3>{selectedWinkel.name || "Name unknown"}</h3>
                     <p>{selectedWinkel.location || "Location unknown"}</p>
                     <p>Category: {selectedWinkel.category || "Unknown"}</p>
-                    {/* Conditionally display phone */}
                     {selectedWinkel.phone && (
                       <p>Phone: {selectedWinkel.phone}</p>
                     )}
-                    {/* Conditionally display website as a link */}
                     {selectedWinkel.website && (
                       <p>Website: <a href={selectedWinkel.website} target="_blank" rel="noopener noreferrer">{selectedWinkel.website}</a></p>
                     )}

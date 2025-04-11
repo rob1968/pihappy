@@ -4,6 +4,7 @@ from bson.objectid import ObjectId # Ensure ObjectId is imported ONCE
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import logging
+import requests # <<< ADDED for geocoding
 from datetime import datetime
 from blueprints.utils.locale import get_country_language # Assuming this utility exists
 
@@ -192,7 +193,42 @@ def get_profile(user_id=None):
         "language": user_data.get("preferred_language", user_data.get("country_lang", user_data.get("browser_lang", "en"))), # Prioritize preferred_language
         # Add the latest feedback, default to None if not found or no feedback field
         "latest_feedback": feedback_data.get("feedback") if feedback_data else None,
+        "country_center_lat": None, # <<< ADDED: Default to None
+        "country_center_lng": None  # <<< ADDED: Default to None
     }
+
+    # --- Geocode User's Country ---
+    user_country = user_data.get("land")
+    GEOCODING_API_KEY = os.environ.get('GOOGLE_PLACES_API_KEY') # Use the same key as shops
+
+    if user_country and GEOCODING_API_KEY:
+        GEOCODING_API_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json"
+        geocode_params = {'address': user_country, 'key': GEOCODING_API_KEY}
+        try:
+            logging.debug(f"Geocoding country for profile '{target_user_id_str}': {user_country}")
+            geocode_response = requests.get(GEOCODING_API_ENDPOINT, params=geocode_params, timeout=5)
+            geocode_response.raise_for_status()
+            geocode_data = geocode_response.json()
+
+            if geocode_data.get('status') == 'OK' and geocode_data.get('results'):
+                # Use the first result's geometry location
+                location_data = geocode_data['results'][0]['geometry']['location']
+                profile_data["country_center_lat"] = location_data.get('lat')
+                profile_data["country_center_lng"] = location_data.get('lng')
+                logging.info(f"Geocoded country '{user_country}' to: Lat={profile_data['country_center_lat']}, Lng={profile_data['country_center_lng']}")
+            else:
+                 logging.warning(f"Geocoding failed for country '{user_country}'. Status: {geocode_data.get('status')}")
+
+        except requests.exceptions.RequestException as geo_err:
+            logging.error(f"Error calling Geocoding API for country '{user_country}': {geo_err}")
+        except Exception as geo_proc_err:
+            logging.error(f"Error processing Geocoding response for country '{user_country}': {geo_proc_err}", exc_info=True)
+    elif not user_country:
+        logging.warning(f"User {target_user_id_str} has no country ('land') set in profile.")
+    elif not GEOCODING_API_KEY:
+         logging.error("GOOGLE_PLACES_API_KEY not set, cannot geocode country for profile.")
+    # --- End Geocode User's Country ---
+
     logging.debug(f"Successfully fetched profile data for user ID: {target_user_id_str}")
     return jsonify(profile_data), 200
 
