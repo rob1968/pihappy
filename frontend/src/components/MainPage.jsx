@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom'; // Import Link for navigation
 import './MainPage.css'; // Import the CSS
+import MoodVotingForm from './MoodVotingForm'; // Import the MoodVotingForm component
+import AiFeedbackDisplay from './AiFeedbackDisplay'; // Import the AiFeedbackDisplay component
+import ChatInterface from './ChatInterface'; // Import the ChatInterface component
 
 const MainPage = () => {
     // State for various parts of the page
@@ -8,15 +11,14 @@ const MainPage = () => {
     const [stemmingToegestaan, setStemmingToegestaan] = useState(null); // Can vote mood? Initialize as null
     const [eigenFeedback, setEigenFeedback] = useState(''); // AI feedback for user
     const [feedbackVisible, setFeedbackVisible] = useState(true);
-    const [chatMessages, setChatMessages] = useState([]);
-    const [chatInput, setChatInput] = useState('');
-    const [searchInput, setSearchInput] = useState('');
+    const [chatMessages, setChatMessages] = useState([]); // Keep for initial fetch
+    // chatInput, searchInput moved to ChatInterface
     // Community state removed (moved to CommunityPage.jsx)
     const [flashedMessages, setFlashedMessages] = useState([]); // For Flask-like flash messages
     const [soundOn, setSoundOn] = useState(localStorage.getItem("soundOn") === "true");
-    const [aiIsBezig, setAiIsBezig] = useState(false); // Track if AI is processing chat
+    // aiIsBezig moved to ChatInterface
     const [userLanguage, setUserLanguage] = useState('en'); // Default TTS language (simple code like 'en', 'es')
-    const chatBoxRef = useRef(null); // Ref for scrolling chat box
+    // chatBoxRef moved to ChatInterface
 
     // Fetch initial data on component mount
     useEffect(() => {
@@ -142,100 +144,8 @@ const MainPage = () => {
         // TODO: Play sound if turning visible and soundOn
     };
 
-    const handleChatSubmit = async () => { // Make async
-        if (aiIsBezig || !chatInput.trim()) return;
-
-        // Prepare user message content, but don't generate timestamp here
-        const userMessageContent = chatInput.trim();
-
-        // Clear input immediately, but don't add message to state yet
-        const currentInput = chatInput; // Store current input in case of error (optional)
-        setChatInput('');
-        setAiIsBezig(true); // Set loading state
-
-        try {
-            const response = await fetch('/api/chat', { // Added /api prefix
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ vraag: userMessageContent }), // Send only the content
-                credentials: 'include' // Add credentials here
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                // Add BOTH user and assistant messages AFTER successful backend response, using backend timestamps
-                const messagesToAdd = [];
-                if (data.user_message && data.user_message.tijd) {
-                    messagesToAdd.push(data.user_message);
-                } else {
-                     console.warn("Backend did not return user_message object with tijd.");
-                     // Optionally add a fallback with frontend time if needed, but ideally backend should always return it
-                }
-                if (data.assistant_message && data.assistant_message.tijd) {
-                    messagesToAdd.push(data.assistant_message);
-                     // Handle sound playback only if assistant message is valid
-                     playTextToSpeech(data.assistant_message.content, userLanguage);
-                } else {
-                     console.warn("Backend did not return assistant_message object with tijd.");
-                }
-
-                if (messagesToAdd.length > 0) {
-                    setChatMessages(prevMessages => [...prevMessages, ...messagesToAdd]);
-                }
-
-            } else {
-                // Handle API errors
-                const errorData = await response.json().catch(() => ({})); // Try to parse error JSON
-                const errorText = errorData.antwoord || errorData.message || response.statusText;
-                console.error("Failed to send chat message:", response.status, errorText);
-                alert(`Error: ${errorText}`);
-                // Optionally restore user input on error
-                // setChatInput(currentInput);
-            }
-        } catch (error) {
-            console.error("Error sending chat message:", error);
-            const errorMessage = { role: "error", content: `Error sending message: ${error.message}`, tijd: new Date().toISOString() };
-            setChatMessages(prevMessages => [...prevMessages, errorMessage]);
-        } finally {
-            setAiIsBezig(false); // Reset loading state
-        }
-    };
-
-    const handleDeleteMessage = async (messageId) => {
-        if (!messageId) {
-            console.error("Cannot delete message without an ID (tijd).");
-            return;
-        }
-        console.log(`Attempting to delete message with ID: ${messageId}`);
-
-        // Optional: Add a confirmation dialog
-        // if (!window.confirm("Are you sure you want to delete this message?")) {
-        //     return;
-        // }
-
-        try {
-            const response = await fetch(`/api/chat/verwijder/${messageId}`, { // Added /api prefix
-                method: 'DELETE',
-                credentials: 'include' // Include credentials if needed by backend auth
-            });
-
-            if (response.ok) {
-                console.log(`Message ${messageId} deleted successfully.`);
-                // Update frontend state by removing the message
-                setChatMessages(prevMessages => prevMessages.filter(msg => msg.tijd !== messageId));
-                console.log(`Chat messages state updated after deleting ${messageId}.`); // Add log confirmation
-            } else {
-                const errorData = await response.json().catch(() => ({})); // Try to parse error
-                console.error(`Failed to delete message ${messageId}:`, response.status, errorData.message || response.statusText);
-                alert(`Error deleting message: ${errorData.message || response.statusText}`);
-            }
-        } catch (error) {
-            console.error(`Network error deleting message ${messageId}:`, error);
-            alert(`Network error: ${error.message}`);
-        }
-    };
+    // handleChatSubmit moved to ChatInterface.jsx
+    // handleDeleteMessage moved to ChatInterface.jsx
 
     // Community functions removed (moved to CommunityPage.jsx)
 
@@ -246,48 +156,9 @@ const MainPage = () => {
     };
 
     // Define the DOM-based filtering function provided by the user
-    const filterBerichten = () => {
-        const zoekwoord = searchInput.toLowerCase(); // Use state variable
-        // Use chatBoxRef to scope the querySelectorAll
-        const berichten = chatBoxRef.current?.querySelectorAll(".message");
+    // filterBerichten moved to ChatInterface.jsx
 
-        if (!berichten) return; // Exit if chatBoxRef is not ready or no messages
-
-        berichten.forEach(bericht => {
-            // Ensure data-content attribute exists before accessing
-            const content = bericht.getAttribute("data-content") || "";
-
-            const matchTekst = !zoekwoord || content.includes(zoekwoord);
-
-            // Directly manipulate style - NOTE: Less idiomatic React
-            bericht.style.display = matchTekst ? "block" : "none";
-
-            // Highlighting logic
-            const tekstElement = bericht.querySelector(".bericht-tekst");
-            if (tekstElement) {
-                // Store original text if not already stored
-                if (!tekstElement.hasAttribute("data-original-text")) {
-                     tekstElement.setAttribute("data-original-text", tekstElement.textContent);
-                }
-                // Always reset innerHTML first to remove previous highlights
-                tekstElement.innerHTML = tekstElement.getAttribute("data-original-text"); // Restore original before potential highlight
-
-                if (matchTekst && zoekwoord) {
-                    const regex = new RegExp(`(${zoekwoord.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, "gi"); // Escape regex special chars
-                    tekstElement.innerHTML = tekstElement.innerHTML.replace(regex, `<span class="highlight">$1</span>`);
-                }
-                // No need for an else block to restore, as it's done above before the highlight check
-            }
-        });
-    };
-
-    // Effect to run the filter function when search or messages change
-    useEffect(() => {
-        // Run filterBerichten after the component updates and messages are rendered
-        // A slight delay might sometimes be needed for DOM updates, but usually useEffect dependency works
-        filterBerichten();
-    }, [searchInput, chatMessages]); // Rerun when search or messages change
-    // Removed duplicated filterBerichten function and useEffect hook below this line
+    // Chat filter useEffect moved to ChatInterface.jsx
 
     // --- TODO: Implement text-to-speech function ---
     // WARNING: Embedding API keys in frontend code is insecure. Consider a backend proxy.
@@ -336,81 +207,9 @@ const MainPage = () => {
         });
     };
 
-    // Scroll chat box to bottom when messages change
-    useEffect(() => {
-        if (chatBoxRef.current) {
-            chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
-        }
-    }, [chatMessages]);
+    // Chat scroll useEffect moved to ChatInterface.jsx
 
-    // Helper function to render feedback with paragraphs, bolding, and lists
-    const renderFeedback = (feedbackText) => {
-        if (!feedbackText || typeof feedbackText !== 'string') {
-            return <p>{feedbackText || ''}</p>; // Handle empty/non-string feedback
-        }
-
-        const lines = feedbackText.split('\n');
-        const renderedElements = [];
-        // Only need ordered list items now
-        let currentOrderedListItems = [];
-        let keyCounter = 0; // For unique keys
-
-        lines.forEach((line) => {
-            const trimmedLine = line.trim();
-            const orderedListMatch = trimmedLine.match(/^(\d+)\.\s*\*\*(.*)/); // Regex for "1. ** text"
-            const bulletListMatch = trimmedLine.startsWith('- **');
-
-            // --- Close any open ordered list if the current line is not a list item ---
-            if (!orderedListMatch && !bulletListMatch && currentOrderedListItems.length > 0) {
-                 // Close ordered list
-                 renderedElements.push(
-                    <ol key={`ol-${keyCounter++}`} style={{ paddingLeft: '20px' }}> {/* Basic ordered list styling */}
-                        {currentOrderedListItems.map((item, itemIndex) => (
-                            <li key={itemIndex}>{item}</li>
-                        ))}
-                    </ol>
-                );
-                currentOrderedListItems = [];
-            }
-
-            // --- Process the current line ---
-            if (bulletListMatch) {
-                // Treat as ordered list item
-                const content = trimmedLine.substring(4).trim(); // Remove '- ** '
-                if (content) {
-                    currentOrderedListItems.push(content);
-                }
-            } else if (orderedListMatch) {
-                // Ordered list item
-                const content = orderedListMatch[2].trim(); // Get text after "1. ** "
-                if (content) {
-                    currentOrderedListItems.push(content);
-                }
-            } else if (trimmedLine) {
-                 // Regular or bold paragraph (ensure no lists are open)
-                 if (trimmedLine.startsWith('###')) {
-                     const content = trimmedLine.substring(3).trim();
-                     renderedElements.push(<p key={`p-${keyCounter++}`}><strong>{content}</strong></p>);
-                 } else {
-                     renderedElements.push(<p key={`p-${keyCounter++}`}>{trimmedLine}</p>);
-                 }
-            }
-        });
-
-        // --- Process any remaining ordered list items at the end ---
-        if (currentOrderedListItems.length > 0) {
-             renderedElements.push(
-                <ol key={`ol-${keyCounter++}`} style={{ paddingLeft: '20px' }}>
-                    {currentOrderedListItems.map((item, itemIndex) => (
-                        <li key={itemIndex}>{item}</li>
-                    ))}
-                </ol>
-            );
-        }
-
-        // If no elements were generated (e.g., only whitespace input), return null or an empty paragraph
-        return renderedElements.length > 0 ? renderedElements : null;
-    };
+    // renderFeedback function removed, now lives in AiFeedbackDisplay.jsx
 
     return (
         <div className="container">
@@ -444,171 +243,32 @@ const MainPage = () => {
             )}
 
             {/* Mood Voting Form */}
-            {stemmingToegestaan === true && ( // Explicitly check for true
-                <form onSubmit={(e) => e.preventDefault()}> {/* Prevent default form submission */}
-                    <label>How are you feeling right now?</label>
-                    <div className="mood-columns">
-                        {/* Positive */}
-                        <div className="mood-column">
-                            <div className="groep-label">😊 Positive</div>
-                            <button type="button" onClick={() => handleMoodSubmit('Happy 😊')}>Happy 😊</button>
-                            <button type="button" onClick={() => handleMoodSubmit('Excited 🤩')}>Excited 🤩</button>
-                            <button type="button" onClick={() => handleMoodSubmit('Grateful 🙏')}>Grateful 🙏</button>
-                        </div>
-                        {/* Negative */}
-                        <div className="mood-column">
-                            <div className="groep-label">😔 Negative</div>
-                            <button type="button" onClick={() => handleMoodSubmit('Sad 😔')}>Sad 😔</button>
-                            <button type="button" onClick={() => handleMoodSubmit('Stressed 😰')}>Stressed 😰</button>
-                            <button type="button" onClick={() => handleMoodSubmit('Sick 🤒')}>Sick 🤒</button>
-                        </div>
-                        {/* Neutral */}
-                        <div className="mood-column">
-                            <div className="groep-label">😐 Neutral</div>
-                            <button type="button" onClick={() => handleMoodSubmit('Neutral 😐')}>Neutral 😐</button>
-                            <button type="button" onClick={() => handleMoodSubmit('Surprised 😲')}>Surprised 😲</button>
-                            <button type="button" onClick={() => handleMoodSubmit('Reflective 🤔')}>Reflective 🤔</button>
-                        </div>
-                    </div>
-                </form>
-            )}
+            {/* Render the extracted Mood Voting Form component */}
+            <MoodVotingForm
+                isVotingAllowed={stemmingToegestaan === true} // Pass voting status
+                onMoodSubmit={handleMoodSubmit} // Pass the submit handler
+            />
 
             {/* AI Feedback */}
-            {/* AI Feedback Area - Always Rendered */}
-                <>
-                    <div
-                        id="aiFeedbackBox" // Keep ID for potential direct manipulation if needed, though state is preferred
-                        className="ai-feedback-box"
-                        aria-hidden={!feedbackVisible}
-                        style={{ display: feedbackVisible ? 'block' : 'none' }}
-                        // Render paragraphs manually instead of using dangerouslySetInnerHTML
-                      >
-                        {/* Show feedback or default message */}
-                        {eigenFeedback
-                            ? renderFeedback(eigenFeedback)
-                            : <p>Submit your mood to get feedback.</p>
-                        }
-                      </div>
-                      {/* Removed extraneous closing tag from previous diff error */}
-                    <button
-                        id="toggleFeedbackButton" // Keep ID for potential direct manipulation
-                        aria-expanded={feedbackVisible}
-                        aria-controls="aiFeedbackBox"
-                        onClick={toggleFeedback}
-                    >
-                        {feedbackVisible ? '👆 Hide feedback' : '👇 Show feedback'}
-                    </button>
-                </>
-            {/* End AI Feedback Area */}
+            {/* Render the extracted AI Feedback Display component */}
+            <AiFeedbackDisplay
+                feedbackText={eigenFeedback}
+                isVisible={feedbackVisible}
+                onToggleVisibility={toggleFeedback}
+            />
 
             {/* Sound Toggle */}
             <button id="toggleSoundButton" onClick={toggleSound}>
                 {soundOn ? '🔊 Sound: On' : '🔇 Sound: Off'}
             </button>
 
-            {/* Chat Section */}
-            <input
-                type="text"
-                id="searchInput" // Keep ID
-                placeholder="Search in messages.."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                // onChange triggers state update, which triggers the useEffect hook containing filterBerichten
+            {/* Chat Section - Render the extracted ChatInterface component */}
+            <ChatInterface
+                initialMessages={chatMessages} // Pass fetched initial messages
+                userLanguage={userLanguage}
+                soundOn={soundOn}
+                playTextToSpeech={playTextToSpeech} // Pass the TTS function
             />
-
-            <div id="chatBox" className="chat-box" ref={chatBoxRef}>
-                {/* Render ALL chatMessages, filtering will happen via DOM manipulation */}
-                {chatMessages.map((msg, index) => (
-                     // Add data-content attribute for the filter function
-                     // Use msg.tijd for key if available and unique, otherwise fallback to index
-                     <div key={msg.tijd || index} className={`message ${msg.role}`} data-content={msg.content.toLowerCase()}>
-                        {/* Basic message structure - needs date/time formatting */}
-                        <div style={{ fontSize: '0.9em', color: 'gray' }}>🕒 {new Date(msg.tijd).toLocaleTimeString('en-US')}</div>
-                        <strong>{msg.role === "user" ? "You" : msg.role === "assistant" ? "AI" : "⚠️ Error"}:</strong>
-                        {/* Add data-original-text attribute */}
-                        <span className="bericht-tekst" data-original-text={msg.content}>{msg.content}</span>
-                        {/* Add Delete Button */}
-                        <button
-                            onClick={() => handleDeleteMessage(msg.tijd)}
-                            className="delete-message-button"
-                            title="Delete this message"
-                            aria-label="Delete message"
-                            // Only show delete for user messages? Or all? Let's allow deleting all for now.
-                            // style={{ display: msg.role === 'user' ? 'inline-block' : 'none' }} // Example to only show for user
-                        >
-                            🗑️ {/* Dustbin icon */}
-                        </button>
-                     </div>
-                ))}
-            </div>
-
-            {/* WhatsApp-style chat input container */}
-            <div style={{
-                display: 'flex',
-                alignItems: 'flex-end', // Align items to bottom as textarea grows
-                padding: '8px 12px',
-                border: '1px solid #ccc', // Subtle border
-                borderRadius: '25px',    // Rounded corners
-                backgroundColor: '#f0f2f5', // Light grey background like WhatsApp
-                marginTop: '10px'       // Space above input
-            }}>
-                <textarea
-                    id="chatInput" // Keep ID
-                    placeholder="Ask a question... (max 250 characters)" // Updated placeholder
-                    value={chatInput}
-                    maxLength={250} // Enforce character limit
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onInput={(e) => { // Auto-resize height
-                        e.target.style.height = 'auto'; // Reset height
-                        e.target.style.height = `${e.target.scrollHeight}px`; // Set to scroll height
-                    }}
-                    onKeyPress={(e) => {
-                        // Allow Shift+Enter for new lines, Enter alone submits
-                        if (e.key === 'Enter' && !e.shiftKey && !aiIsBezig) {
-                            e.preventDefault(); // Prevent default Enter behavior (new line)
-                            handleChatSubmit();
-                        }
-                    }}
-                    disabled={aiIsBezig}
-                    style={{ // Styling for the textarea
-                        flexGrow: 1,           // Take available space
-                        border: 'none',        // No border inside the container
-                        outline: 'none',       // No focus outline
-                        backgroundColor: 'transparent', // Inherit container background
-                        resize: 'none',        // Disable manual resize handle
-                        overflowY: 'hidden',   // Hide scrollbar until needed
-                        minHeight: '24px',     // Minimum height matching button approx
-                        maxHeight: '120px',    // Optional: Limit max height
-                        padding: '6px 0',      // Vertical padding
-                        marginRight: '10px',   // Space between textarea and button
-                        lineHeight: '1.4',     // Adjust line height
-                        fontSize: '1rem'       // Standard font size
-                    }}
-                />
-                <button
-                    id="sendButton" // Keep ID
-                    onClick={handleChatSubmit}
-                    disabled={aiIsBezig}
-                    style={{ // Styling for the send button
-                        border: 'none',
-                        backgroundColor: '#00a884', // WhatsApp-like green
-                        color: 'white',
-                        borderRadius: '50%',    // Circular button
-                        width: '40px',          // Fixed width
-                        height: '40px',         // Fixed height
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        fontSize: '1.5rem',     // Icon size
-                        flexShrink: 0          // Prevent button from shrinking
-                    }}
-                    title="Send message"
-                    aria-label="Send message"
-                >
-                    ➤ {/* Simple send icon */}
-                </button>
-            </div>
 
             {/* Community Section removed (moved to CommunityPage.jsx) */}
 
