@@ -349,3 +349,133 @@ button:disabled {
 .mt-3 {
   margin-top: 1.25rem !important; /* Increased top margin */
 }
+/* WhatsApp-style Chat Input (Overrides previous chat input styles if needed) */
+.chat-input-area-whatsapp {
+  display: flex;
+  align-items: flex-end; /* Align items to bottom as textarea grows */
+  padding: 8px 12px;
+  border: 1px solid #ccc; /* Subtle border */
+  border-radius: 25px;    /* Rounded corners */
+  background-color: #f0f2f5; /* Light grey background like WhatsApp */
+  margin-top: 10px;       /* Space above input */
+  overflow: visible; /* Reset overflow from previous container style */
+}
+
+.chat-input-area-whatsapp:focus-within {
+  border-color: #7a6aaf; /* Purple focus outline on container */
+  box-shadow: 0 0 0 2px rgba(94, 69, 156, 0.2); /* Subtle focus shadow */
+}
+
+
+.chat-textarea-whatsapp {
+  flex-grow: 1;           /* Take available space */
+  border: none;        /* No border inside the container */
+  outline: none;       /* No focus outline */
+  background-color: transparent; /* Inherit container background */
+  resize: none;        /* Disable manual resize handle */
+  overflow-y: hidden;   /* Hide scrollbar until needed */
+  min-height: 24px;     /* Minimum height matching button approx */
+  max-height: 120px;    /* Optional: Limit max height */
+  padding: 6px 0;      /* Vertical padding */
+  margin: 0; /* Reset margin */
+  margin-right: 10px;   /* Space between textarea and button */
+  line-height: 1.4;     /* Adjust line height */
+  font-size: 1rem;       /* Standard font size */
+  box-shadow: none; /* Override potential global input styles */
+  border-radius: 0; /* Reset radius */
+}
+
+.chat-send-button-whatsapp {
+  border: none;
+  background-color: #00a884; /* WhatsApp-like green */
+  color: white;
+  border-radius: 50%;    /* Circular button */
+  width: 40px;          /* Fixed width */
+  height: 40px;         /* Fixed height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.5rem;     /* Icon size */
+  flex-shrink: 0;          /* Prevent button from shrinking */
+  padding: 0; /* Remove default padding */
+  line-height: 1; /* Ensure icon is centered */
+  margin: 0; /* Reset margin */
+  align-self: center; /* Align button vertically */
+  transition: background-color 0.2s ease;
+}
+
+.chat-send-button-whatsapp:hover {
+  background-color: #008a6b; /* Darker green on hover */
+  transform: none; /* Remove hover transform */
+}
+
+
+.chat-send-button-whatsapp:disabled {
+  background-color: #9db0ac; /* Grey out when disabled */
+  cursor: not-allowed;
+}
+/* WhatsApp-style Community Input (Shares styles with Chat Input) */
+.community-input-area-whatsapp {
+  display: flex;
+  align-items: flex-end;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+  border-radius: 25px;
+  background-color: #f0f2f5;
+  margin-top: 10px; /* Adjust margin as needed for CommunityPage */
+  overflow: visible;
+}
+
+.community-input-area-whatsapp:focus-within {
+  border-color: #7a6aaf;
+  box-shadow: 0 0 0 2px rgba(94, 69, 156, 0.2);
+}
+
+.community-textarea-whatsapp {
+  flex-grow: 1;
+  border: none;
+  outline: none;
+  background-color: transparent;
+  resize: none;
+  overflow-y: hidden;
+  min-height: 24px;
+  max-height: 120px;
+  padding: 6px 0;
+  margin: 0;
+  margin-right: 10px;
+  line-height: 1.4;
+  font-size: 1rem;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.community-send-button-whatsapp {
+  border: none;
+  background-color: #00a884;
+  color: white;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  padding: 0;
+  line-height: 1;
+  margin: 0;
+  align-self: center;
+  transition: background-color 0.2s ease;
+}
+
+.community-send-button-whatsapp:hover {
+  background-color: #008a6b;
+  transform: none;
+}
+
+.community-send-button-whatsapp:disabled { /* Although not currently used, good to have */
+  background-color: #9db0ac;
+  cursor: not-allowed;
+}

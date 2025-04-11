@@ -132,16 +132,8 @@ const CommunityPage = () => {
 
             {/* Community Section JSX moved from MainPage */}
             <h2>🌍 Community Input</h2>
-            {/* WhatsApp-style input container */}
-            <div style={{
-                display: 'flex',
-                alignItems: 'flex-end', // Align items to bottom as textarea grows
-                padding: '8px 12px',
-                border: '1px solid #ccc', // Subtle border
-                borderRadius: '25px',    // Rounded corners
-                backgroundColor: '#f0f2f5', // Light grey background like WhatsApp
-                marginBottom: '10px'     // Space below input
-            }}>
+            {/* WhatsApp-style input container - Using CSS classes now */}
+            <div className="community-input-area-whatsapp"> {/* Use class */}
                 <textarea
                     id="inputText" // Keep ID
                     placeholder="Share your idea or suggestion (max 250 characters)"
@@ -159,38 +151,12 @@ const CommunityPage = () => {
                             handleCommunitySubmit();
                         }
                     }}
-                    style={{ // Styling for the textarea
-                        flexGrow: 1,           // Take available space
-                        border: 'none',        // No border inside the container
-                        outline: 'none',       // No focus outline
-                        backgroundColor: 'transparent', // Inherit container background
-                        resize: 'none',        // Disable manual resize handle
-                        overflowY: 'hidden',   // Hide scrollbar until needed
-                        minHeight: '24px',     // Minimum height matching button approx
-                        maxHeight: '120px',    // Optional: Limit max height
-                        padding: '6px 0',      // Vertical padding
-                        marginRight: '10px',   // Space between textarea and button
-                        lineHeight: '1.4',     // Adjust line height
-                        fontSize: '1rem'       // Standard font size
-                    }}
+                    className="community-textarea-whatsapp" // Use class
                 />
                 <button
                     id="sendInputButton"
                     onClick={handleCommunitySubmit}
-                    style={{ // Styling for the send button
-                        border: 'none',
-                        backgroundColor: '#00a884', // WhatsApp-like green
-                        color: 'white',
-                        borderRadius: '50%',    // Circular button
-                        width: '40px',          // Fixed width
-                        height: '40px',         // Fixed height
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        fontSize: '1.5rem',     // Icon size
-                        flexShrink: 0          // Prevent button from shrinking
-                    }}
+                    className="community-send-button-whatsapp" // Use class
                     title="Send" // Tooltip
                 >
                     ➤ {/* Simple send icon */}

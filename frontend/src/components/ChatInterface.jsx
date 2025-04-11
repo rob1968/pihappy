@@ -165,11 +165,8 @@ const ChatInterface = ({ initialMessages, userLanguage, soundOn, playTextToSpeec
                 ))}
             </div>
 
-            {/* Chat Input Area */}
-            <div style={{
-                display: 'flex', alignItems: 'flex-end', padding: '8px 12px',
-                border: '1px solid #ccc', borderRadius: '25px', backgroundColor: '#f0f2f5', marginTop: '10px'
-            }}>
+            {/* Chat Input Area - Using CSS classes now */}
+            <div className="chat-input-area-whatsapp">
                 <textarea
                     id="chatInput"
                     placeholder="Ask a question... (max 250 characters)"
@@ -187,21 +184,13 @@ const ChatInterface = ({ initialMessages, userLanguage, soundOn, playTextToSpeec
                         }
                     }}
                     disabled={aiIsBezig}
-                    style={{
-                        flexGrow: 1, border: 'none', outline: 'none', backgroundColor: 'transparent',
-                        resize: 'none', overflowY: 'hidden', minHeight: '24px', maxHeight: '120px',
-                        padding: '6px 0', marginRight: '10px', lineHeight: '1.4', fontSize: '1rem'
-                    }}
+                    className="chat-textarea-whatsapp" // Use class for styling
                 />
                 <button
                     id="sendButton"
                     onClick={handleChatSubmit}
                     disabled={aiIsBezig}
-                    style={{
-                        border: 'none', backgroundColor: '#00a884', color: 'white', borderRadius: '50%',
-                        width: '40px', height: '40px', display: 'flex', alignItems: 'center',
-                        justifyContent: 'center', cursor: 'pointer', fontSize: '1.5rem', flexShrink: 0
-                    }}
+                    className="chat-send-button-whatsapp" // Use class for styling
                     title="Send message"
                     aria-label="Send message"
                 >
