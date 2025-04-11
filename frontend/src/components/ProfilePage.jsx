@@ -320,6 +320,10 @@ function ProfilePage() {
               <p><strong>Email:</strong> {profile.email || 'N/A'}</p>
               {/* <<< MODIFIED: Display full name if available >>> */}
               <p><strong>Country:</strong> {displayCountryName}</p>
+              {/* ADDED: Explicitly show full_land_name if it exists */}
+              {profile?.full_land_name && (
+                <p><strong>Full Country Name (DB):</strong> {profile.full_land_name}</p>
+              )}
               <p><strong>Preferred Language:</strong> {displayLanguageName}</p>
             </>
           )}
