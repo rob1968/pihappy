@@ -11,7 +11,7 @@ function ProfilePage() {
   // Removed loadingShops state
   const [error, setError] = useState(null); // General page loading errors
   const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [editFormData, setEditFormData] = useState({ naam: '', land: '' });
+  const [editFormData, setEditFormData] = useState({ naam: '', land: '', language: '' }); // Add language
   const [editError, setEditError] = useState(null); // Profile editing specific errors
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [countries, setCountries] = useState([]); // State for country list
@@ -89,6 +89,7 @@ function ProfilePage() {
     setEditFormData({
       naam: profile?.naam || '',
       land: profile?.land || '',
+      language: profile?.language || '', // Initialize language in edit form
       // Add other fields from profile if they become editable
     });
     setEditError(null); // Clear previous edit errors
@@ -117,6 +118,7 @@ function ProfilePage() {
     const dataToSave = {
         naam: editFormData.naam,
         land: editFormData.land,
+        language: editFormData.language, // Include language in data to save
     };
 
     // Update profile - NOTE: This PUT request might need adjustment
@@ -179,7 +181,24 @@ function ProfilePage() {
   };
 
 
+  // --- Helper: Map language code to full name ---
+  const languageCodeToName = {
+    "en": "English", "nl": "Dutch", "es": "Spanish", "de": "German",
+    "fr": "French", "zh": "Chinese", "hi": "Hindi", "id": "Indonesian",
+    "ur": "Urdu", "pt": "Portuguese", "bn": "Bengali", "ru": "Russian",
+    "ja": "Japanese", "tl": "Tagalog", "vi": "Vietnamese", "am": "Amharic",
+    "ar": "Arabic", "fa": "Persian", "tr": "Turkish", "ko": "Korean",
+    "th": "Thai",
+    // Add other languages as needed
+  };
+
   // --- Render Profile ---
+  // Find full country name
+  const countryObj = countries.find(c => c.code.toLowerCase() === profile?.land?.toLowerCase());
+  const fullCountryName = countryObj ? countryObj.naam : profile?.land || 'N/A'; // Fallback to code or N/A
+
+  // Find full language name (assuming profile.language exists)
+  const fullLanguageName = languageCodeToName[profile?.language] || profile?.language || 'N/A'; // Fallback to code or N/A
   return (
     <div className="profile-container container mt-4">
       <h1>Your Profile</h1>
@@ -245,6 +264,29 @@ function ProfilePage() {
                    </select>
                 </div>
               </div>
+              {/* Add Language Dropdown */}
+              <div className="mb-3 row">
+                <label htmlFor="editLanguage" className="col-sm-2 col-form-label"><strong>Language:</strong></label>
+                <div className="col-sm-10">
+                   <select
+                     className="form-select"
+                     id="editLanguage"
+                     name="language" // Matches state key
+                     value={editFormData.language} // Controlled component
+                     onChange={handleProfileInputChange}
+                   >
+                     <option value="" disabled>Select a language...</option>
+                     {/* Map over the languageCodeToName object */}
+                     {Object.entries(languageCodeToName).map(([code, name]) => (
+                       <option key={code} value={code}>
+                         {name}
+                       </option>
+                     ))}
+                     {/* Optionally add an 'auto' or 'default' option */}
+                     {/* <option value="">Auto-detect (Default)</option> */}
+                   </select>
+                </div>
+              </div>
               {/* Add other editable fields here */}
               <div className="d-flex justify-content-end">
                  <button className="btn btn-secondary me-2" onClick={handleProfileCancelClick} disabled={isSavingProfile}>Cancel</button>
@@ -257,7 +299,8 @@ function ProfilePage() {
             <>
               <p><strong>Name:</strong> {profile.naam || 'N/A'}</p>
               <p><strong>Email:</strong> {profile.email || 'N/A'}</p>
-              <p><strong>Country:</strong> {profile.land || 'N/A'}</p>
+              <p><strong>Country:</strong> {fullCountryName}</p>
+              <p><strong>Preferred Language:</strong> {fullLanguageName}</p>
               {/* Display other profile fields here */}
             </>
           )}

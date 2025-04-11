@@ -15,6 +15,7 @@ const AuthForm = () => {
   const [landen, setLanden] = useState([]); // Register only
   // Removed heeftWinkel, winkelnaam, locatie state
   const [gekozenLand, setGekozenLand] = useState(""); // Register only
+  const [gekozenTaal, setGekozenTaal] = useState(""); // Register only - Preferred Language
 
   const navigate = useNavigate();
   // Removed autocompleteRef and useJsApiLoader hook
@@ -24,8 +25,14 @@ const AuthForm = () => {
     if (!isLoginMode) {
       fetch("/api/landen")
         .then((res) => res.json())
-        .then((data) => setLanden(data.landen || []))
-        .catch((err) => console.error("Error fetching countries:", err));
+        .then((data) => {
+            console.log("Received countries data:", data); // Log received data
+            setLanden(data.landen || []); // Update state
+        })
+        .catch((err) => {
+            console.error("Error fetching countries:", err); // Log error
+            setLanden([]); // Set to empty array on error
+        });
     }
   }, [isLoginMode]); // Re-fetch if mode changes (though unlikely needed)
 
@@ -65,14 +72,14 @@ const AuthForm = () => {
         email,
         wachtwoord: password,
         land: gekozenLand,
+        language: gekozenTaal, // Add chosen language
         // Removed shop-related fields from registration data
         browser_lang: browserLang.split('-')[0], // Send primary language code (e.g., 'en' from 'en-US')
         timestamp: new Date().toISOString(),
       };
 
-      // Removed shop-related validation
-      if (!name || !email || !password || !gekozenLand) {
-          alert("Please fill in all required fields.");
+      if (!name || !email || !password || !gekozenLand || !gekozenTaal) { // Add language validation
+          alert("Please fill in all required fields (Name, Email, Password, Country, Language).");
           return;
       }
 
@@ -92,6 +99,7 @@ const AuthForm = () => {
             setName("");
             setPassword(""); // Clear password for login
             setGekozenLand("");
+            setGekozenTaal(""); // Clear language on success
             // Removed clearing of shop state
           } else {
              alert(`Registration Error: ${result.message}`);
@@ -111,6 +119,7 @@ const AuthForm = () => {
     setPassword("");
     setName("");
     setGekozenLand("");
+    setGekozenTaal(""); // Clear language on mode toggle
     // Removed clearing of shop state
   };
 
@@ -194,6 +203,36 @@ const AuthForm = () => {
                         </option>
                       ))}
                       <option value="other">🌎 Other</option>
+                    </select>
+                  </div>
+
+                  {/* --- Preferred Language Dropdown --- */}
+                  <div className="mb-3">
+                    <label htmlFor="language" className="form-label">
+                      🗣️ Preferred Language <span className="text-danger">*</span>
+                    </label>
+                    <select
+                      id="language"
+                      name="language"
+                      className="form-select"
+                      value={gekozenTaal}
+                      onChange={(e) => setGekozenTaal(e.target.value)}
+                      required
+                    >
+                      <option value="" disabled>🌐 Select a language...</option>
+                      {/* Reuse language map from ProfilePage or define here */}
+                      {Object.entries({
+                        "en": "English", "nl": "Dutch", "es": "Spanish", "de": "German",
+                        "fr": "French", "zh": "Chinese", "hi": "Hindi", "id": "Indonesian",
+                        "ur": "Urdu", "pt": "Portuguese", "bn": "Bengali", "ru": "Russian",
+                        "ja": "Japanese", "tl": "Tagalog", "vi": "Vietnamese", "am": "Amharic",
+                        "ar": "Arabic", "fa": "Persian", "tr": "Turkish", "ko": "Korean",
+                        "th": "Thai",
+                      }).map(([code, name]) => (
+                        <option key={code} value={code}>
+                          {name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 

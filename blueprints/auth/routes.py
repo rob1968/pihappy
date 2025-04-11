@@ -27,17 +27,19 @@ def register():
         wachtwoord = data.get("wachtwoord")
         land = data.get("land")
         # Removed shop-related fields based on previous steps
-        browser_lang = data.get("browser_lang", "en")
+        browser_lang = data.get("browser_lang", "en") # Keep browser lang for info
+        preferred_lang = data.get("language") # Get preferred language from request
 
-        if not naam or not email or not wachtwoord or not land: # Added land validation
-            return jsonify({"status": "error", "message": "Vereiste velden ontbreken (Naam, Email, Wachtwoord, Land)."}), 400
+        # Add preferred_lang to validation
+        if not naam or not email or not wachtwoord or not land or not preferred_lang:
+            return jsonify({"status": "error", "message": "Required fields missing (Name, Email, Password, Country, Language)."}), 400
 
         existing_user = db.users.find_one({"email": email})
         if existing_user:
             return jsonify({"status": "error", "message": "Gebruiker met dit e-mailadres bestaat al."}), 400
 
         hashed_password = generate_password_hash(wachtwoord)
-        country_lang = get_country_language(land) if land else "en"
+        country_lang = get_country_language(land) if land else "en" # Still useful for fallback/info
 
         user = {
             "naam": naam,
@@ -45,8 +47,9 @@ def register():
             "wachtwoord": hashed_password,
             "land": land,
             # Removed shop fields
-            "browser_lang": browser_lang,
+            "browser_lang": browser_lang, # User's browser language at registration
             "country_lang": country_lang,
+            "preferred_language": preferred_lang, # Use language selected by user
             "timestamp": timestamp,
         }
 
@@ -186,6 +189,7 @@ def get_profile(user_id=None):
         "naam": user_data.get("naam"),
         "email": user_data.get("email"), # Usually okay to return email
         "land": user_data.get("land"),
+        "language": user_data.get("preferred_language", user_data.get("country_lang", user_data.get("browser_lang", "en"))), # Prioritize preferred_language
         # Add the latest feedback, default to None if not found or no feedback field
         "latest_feedback": feedback_data.get("feedback") if feedback_data else None,
     }
@@ -256,6 +260,11 @@ def update_profile(user_id=None):
             logging.warning(f"Could not determine country language for {allowed_updates['land']}: {lang_err}")
             # Decide if you want to proceed without country_lang or handle differently
 
+    new_language = data.get("language")
+    if new_language is not None and isinstance(new_language, str):
+        # Validate if it's a known/allowed language code if necessary
+        allowed_updates["preferred_language"] = new_language.strip() # Store as preferred_language
+
     # Add other updatable fields here (ensure type checking and sanitization)
 
     if not allowed_updates:
@@ -289,6 +298,7 @@ def update_profile(user_id=None):
             "naam": updated_user_data.get("naam"),
             "email": updated_user_data.get("email"),
             "land": updated_user_data.get("land"),
+            "language": updated_user_data.get("preferred_language", updated_user_data.get("country_lang", updated_user_data.get("browser_lang", "en"))), # Return updated preference
         }
 
         # 8. Update Session Data if relevant fields changed
@@ -299,11 +309,11 @@ def update_profile(user_id=None):
         if "land" in allowed_updates and session.get('gebruiker', {}).get('land') != allowed_updates["land"]:
             session['gebruiker']['land'] = allowed_updates["land"]
             session_updated = True
-        # Also update session language if country_lang was set
-        if "country_lang" in allowed_updates and session.get('lang') != allowed_updates["country_lang"]:
-             session['lang'] = allowed_updates["country_lang"]
+        # Update session language if preferred_language was changed
+        if "preferred_language" in allowed_updates and session.get('lang') != allowed_updates["preferred_language"]:
+             session['lang'] = allowed_updates["preferred_language"]
              session_updated = True
-             logging.info(f"User language preference updated in session to: {session['lang']}") # Log language change
+             logging.info(f"User language preference updated in session to: {session['lang']}")
 
         if session_updated:
             session.modified = True # Mark session as modified only if changed

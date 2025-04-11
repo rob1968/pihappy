@@ -119,9 +119,10 @@ def send_community_input():
 
     nieuwe_input = {
         "gebruiker": gebruiker_naam,
-        "userId": user_object_id, # Store user ID for reference
+        "userId": user_object_id,
+        "country": gebruiker_info.get("land", "Unknown"), # Store user's country
         "input": input_text,
-        "tijd": datetime.utcnow() # Use UTC timestamp object
+        "tijd": datetime.utcnow()
     }
 
     logger.debug(f"Attempting to insert into community_input_collection: {nieuwe_input}")
@@ -354,3 +355,42 @@ def community_statistieken():
         "populaire_themas": populaire_themas,
         "top_bijdragers": top_bijdragers
     })
+
+@community_bp.route("/community_input/stats_by_country", methods=["GET"])
+def community_stats_by_country():
+    """Calculates and returns the count of community inputs per country using aggregation."""
+    logger.debug("Received request for /community_input/stats_by_country")
+    try:
+        # Use aggregation pipeline to group by country and count
+        pipeline = [
+            # Removed $match stage to include documents without a country field
+            {
+                "$group": {
+                    "_id": "$country",  # Group by the country field
+                    "count": { "$sum": 1 } # Count documents in each group
+                }
+            },
+            {
+                "$project": {
+                    "_id": 0, # Exclude the default _id field from output
+                    "country": "$_id", # Rename _id (which is the country) to 'country'
+                    "count": 1 # Include the count
+                }
+            },
+            {
+                 "$sort": { "count": -1 } # Optional: Sort by count descending
+            }
+        ]
+
+        results = list(community_input_collection.aggregate(pipeline))
+
+        # Convert list of {country: 'XX', count: N} to the desired { 'XX': N } format
+        result_dict = {item['country']: item['count'] for item in results}
+
+        logger.debug(f"Calculated country counts: {result_dict}")
+
+        return jsonify({"status": "success", "country_counts": result_dict})
+
+    except Exception as e:
+        logger.error(f"Error calculating community stats by country: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": "Failed to calculate country statistics."}), 500

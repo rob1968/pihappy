@@ -10,7 +10,8 @@ const CommunityPage = () => {
     const [populaireThemas, setPopulaireThemas] = useState('Loading...');
     const [topBijdragers, setTopBijdragers] = useState('Loading...');
     const [canPost, setCanPost] = useState(true); // Assume true initially
-    const [cooldownExpires, setCooldownExpires] = useState(null); // Store expiry time
+    const [cooldownExpires, setCooldownExpires] = useState(null);
+    const [countryCounts, setCountryCounts] = useState(null); // State for country counts
     // const [flashedMessages, setFlashedMessages] = useState([]);
 
     // Function moved from MainPage
@@ -161,10 +162,31 @@ const CommunityPage = () => {
     };
 
     // Fetch initial stats and input status on component mount
+    // Function to fetch country counts
+    const fetchCountryCounts = async () => {
+        console.log("Fetching country counts...");
+        try {
+            const response = await fetch('/api/community_input/stats_by_country', { credentials: 'include' });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            console.log("Received country counts data:", data); // Log received data
+            if (data.status === 'success') {
+                setCountryCounts(data.country_counts);
+            } else {
+                console.error("Error fetching country counts:", data.message);
+                setCountryCounts({}); // Set empty object on error
+            }
+        } catch (error) {
+            console.error("Network error fetching country counts:", error);
+            setCountryCounts({}); // Set empty object on error
+        }
+    };
+
     useEffect(() => {
         refreshCommunityStats();
         fetchInputStatus();
-        fetchLatestAnalysis(); // Fetch latest analysis on initial load
+        fetchLatestAnalysis();
+        fetchCountryCounts(); // Fetch country counts on initial load
     }, []); // Empty dependency array ensures this runs only once on mount
 
     // Helper function to calculate remaining time
@@ -244,8 +266,25 @@ const CommunityPage = () => {
             <div id="statistieken_resultaat">
                 <p><strong>🔍 Popular Topics:</strong> <span id="populaireThemas">{populaireThemas}</span></p>
                 <p><strong>🏆 Contributors:</strong> <span id="topBijdragers">{topBijdragers}</span></p>
+                {/* Display Country Counts */}
+                <div>
+                    <strong>🌍 Inputs by Country:</strong>
+                    {countryCounts === null ? (
+                        <span> Loading...</span>
+                    ) : Object.keys(countryCounts).length > 0 ? (
+                        <ul style={{ listStyle: 'none', paddingLeft: '10px', marginTop: '5px' }}>
+                            {Object.entries(countryCounts)
+                                .sort(([, countA], [, countB]) => countB - countA) // Sort descending by count
+                                .map(([country, count]) => (
+                                    <li key={country}>{country}: {count}</li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <span> No data available.</span>
+                    )}
+                </div>
             </div>
-            {/* Moved refresh button here for better grouping, but kept analyse button near input */}
+            {/* Refresh button could also trigger fetchCountryCounts if desired */}
 
 
         </div>

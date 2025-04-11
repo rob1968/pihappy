@@ -116,10 +116,22 @@ const MainPage = () => {
                 setLaatsteStemming(data.entry.stemming); // Update mood from response
                 setEigenFeedback(data.ai_feedback); // Update AI feedback from response
                 setStemmingToegestaan(false); // Explicitly disable voting after success
-                setFeedbackVisible(true); // Show feedback after submission
-                // Speak the AI feedback if sound is on
-                playTextToSpeech(data.ai_feedback, userLanguage); // Pass user language
-                // Optionally clear chat history if backend logic implies it
+                // setFeedbackVisible(true); // Don't show feedback box immediately
+
+                // Construct the AI follow-up question
+                const aiQuestionContent = `I see you're feeling ${mood}. Could you tell me a bit more about why?`;
+                const aiQuestionMessage = {
+                    role: "assistant",
+                    content: aiQuestionContent,
+                    tijd: new Date().toISOString() // Use frontend time for this immediate message
+                };
+
+                // Add the question to the chat history
+                // Decide if mood submission should clear history or append. Appending for now.
+                setChatMessages(prevMessages => [...prevMessages, aiQuestionMessage]);
+
+                // Speak the AI question if sound is on
+                playTextToSpeech(aiQuestionContent, userLanguage);
                 // setChatMessages([]);
                 // setFlashedMessages([{ message: data.message || 'Mood saved!', category: 'success' }]);
             } else if (response.status === 409) { // Handle conflict (already submitted today)
@@ -246,7 +258,7 @@ const MainPage = () => {
             {/* Last Mood Display */}
             {laatsteStemming && (
                 <div style={{ fontSize: '32px', fontWeight: 'bold', marginTop: '20px', color: '#28a745' }}>
-                    Your feeling today is: {laatsteStemming}
+                    You are feeling {laatsteStemming} today
                 </div>
             )}
 
