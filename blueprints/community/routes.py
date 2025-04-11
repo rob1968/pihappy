@@ -4,8 +4,8 @@ import os
 import re
 # import requests # Already imported below if needed
 import openai
-import requests # Ensure requests is imported
-from datetime import datetime
+import requests
+from datetime import datetime, timedelta # Import timedelta
 from collections import Counter
 from pymongo import MongoClient
 from dotenv import load_dotenv
@@ -24,21 +24,23 @@ load_dotenv()
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 client = MongoClient(MONGO_URI)
 db = client["pihappy"]
+users_collection = db["users"] # Access users collection
+community_input_collection = db["community_input"] # Use a variable for consistency
 
 # 🛠️ Mongo replacements
 def laad_community_input():
     try:
         # Convert ObjectId to string for JSON serialization
         return [
-            {**doc, "_id": str(doc["_id"])} for doc in db.community_input.find()
+            {**doc, "_id": str(doc["_id"])} for doc in community_input_collection.find()
         ]
     except Exception as e:
         app.logger.error(f"Error loading community input: {e}")
         return []
 
-def sla_community_input_op(data):
-    db.community_input.delete_many({})  # optional: wipe then insert all
-    db.community_input.insert_many(data)
+# def sla_community_input_op(data): # This function seems unused, commenting out
+#     community_input_collection.delete_many({})
+#     community_input_collection.insert_many(data)
 
 
 @community_bp.route('/landen', methods=['GET'])
@@ -71,12 +73,16 @@ def send_community_input():
     logger.debug("Received request for /community_input/send")
     if "gebruiker" not in session:
         logger.warning("Unauthorized attempt to send community input. No 'gebruiker' in session.")
-        return jsonify({"status": "error", "message": "Je moet ingelogd zijn om input te geven."})
+        return jsonify({"status": "error", "message": "Authentication required."}), 401
 
     logger.debug(f"Request JSON data: {request.json}")
     input_text = request.json.get("input", "").strip()
     gebruiker_info = session.get("gebruiker", {})
-    gebruiker_naam = gebruiker_info.get("naam", "Onbekende Gebruiker") # Safely get name
+    gebruiker_naam = gebruiker_info.get("naam", "Unknown User") # Safely get name
+    user_id = gebruiker_info.get("id") # Get user ID
+    if not user_id:
+        logger.error("User ID missing from session during community input send.")
+        return jsonify({"status": "error", "message": "User session error."}), 500
     logger.debug(f"Input text: '{input_text}', User name: '{gebruiker_naam}'")
 
     if not input_text:
@@ -85,30 +91,65 @@ def send_community_input():
 
     # Check input length
     if len(input_text) > 250:
-        logger.warning(f"Received input exceeding 250 characters from user {gebruiker_naam}.")
-        return jsonify({"status": "error", "message": "Your input is too long (max 250 characters)."}), 400 # Added length check
+        logger.warning(f"Received input exceeding 250 characters from user {gebruiker_naam} (ID: {user_id}).")
+        return jsonify({"status": "error", "message": "Your input is too long (max 250 characters)."}), 400
+
+    # --- Cooldown Check ---
+    try:
+        user_object_id = ObjectId(user_id)
+        user_doc = users_collection.find_one({"_id": user_object_id})
+        if user_doc and "last_community_input_time" in user_doc:
+            last_post_time = user_doc["last_community_input_time"]
+            # Ensure last_post_time is offset-aware for comparison if needed, or use naive consistently
+            # Assuming stored time is naive UTC from datetime.utcnow()
+            time_since_last_post = datetime.utcnow() - last_post_time
+            if time_since_last_post < timedelta(hours=1):
+                wait_time = timedelta(hours=1) - time_since_last_post
+                minutes_left = int(wait_time.total_seconds() // 60) + 1 # Round up minutes
+                logger.warning(f"User {user_id} tried to post community input too soon. Wait time: {minutes_left} minutes.")
+                return jsonify({
+                    "status": "error",
+                    "message": f"You can post again in {minutes_left} minute(s)."
+                }), 429 # Too Many Requests
+    except Exception as e:
+        logger.error(f"Error checking cooldown for user {user_id}: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": "Error checking post cooldown."}), 500
+    # --- End Cooldown Check ---
 
     nieuwe_input = {
-        "gebruiker": gebruiker_naam, # Use safely retrieved name
+        "gebruiker": gebruiker_naam,
+        "userId": user_object_id, # Store user ID for reference
         "input": input_text,
-        "tijd": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "tijd": datetime.utcnow() # Use UTC timestamp object
     }
 
-    logger.debug(f"Attempting to insert into db.community_input: {nieuwe_input}")
+    logger.debug(f"Attempting to insert into community_input_collection: {nieuwe_input}")
     try:
-        result = db.community_input.insert_one(nieuwe_input)
+        result = community_input_collection.insert_one(nieuwe_input)
         if result.inserted_id:
             logger.info(f"Successfully inserted community input with ID: {result.inserted_id}")
 
             # Podcast generation logic moved to /analyse route
 
-            return jsonify({"status": "success", "message": "Input verzonden!"})
+            # --- Update User's Last Post Time ---
+            try:
+                users_collection.update_one(
+                    {"_id": user_object_id},
+                    {"$set": {"last_community_input_time": nieuwe_input["tijd"]}}
+                )
+                logger.info(f"Updated last_community_input_time for user {user_id}.")
+            except Exception as update_err:
+                # Log the error but don't fail the request, as the input was saved
+                logger.error(f"Failed to update last_community_input_time for user {user_id}: {update_err}", exc_info=True)
+            # --- End Update User Time ---
+
+            return jsonify({"status": "success", "message": "Input submitted!"}) # Changed message
         else:
-            logger.error("db.community_input.insert_one completed but inserted_id is missing.")
-            return jsonify({"status": "error", "message": "Database error bij opslaan (geen ID)."}), 500
+            logger.error("community_input_collection.insert_one completed but inserted_id is missing.")
+            return jsonify({"status": "error", "message": "Database error on save (no ID)."}), 500
     except Exception as e:
         logger.error(f"Error inserting community input into MongoDB: {e}", exc_info=True)
-        return jsonify({"status": "error", "message": "Database error bij opslaan."}), 500
+        return jsonify({"status": "error", "message": "Database error on save."}), 500
 
 # --- ElevenLabs TTS Function ---
 ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM" # Same voice as frontend
