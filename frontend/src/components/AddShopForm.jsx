@@ -1,5 +1,13 @@
 import React, { useState } from "react";
 
+// --- IMPORTANT SECURITY NOTE ---
+// This component now uses process.env.REACT_APP_GOOGLE_API_KEY directly
+// for geocoding in the handleSubmit function. Exposing API keys directly
+// in frontend code is generally insecure. Consider creating a dedicated
+// backend endpoint to handle geocoding securely if this is a production app.
+// Ensure REACT_APP_GOOGLE_API_KEY is set in your .env file for development.
+// --- /IMPORTANT SECURITY NOTE ---
+
 function AddShopForm() {
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
@@ -8,17 +16,18 @@ function AddShopForm() {
   const [shopSuggestions, setShopSuggestions] = useState([]); // State for suggestions
   const [error, setError] = useState(null); // State for form errors
   const [successMessage, setSuccessMessage] = useState(null); // State for success message
+  const [isSubmitting, setIsSubmitting] = useState(false); // State to disable button during submit
 
   // Function to fetch shop suggestions from the backend
   const fetchShopSuggestions = async (address) => {
     if (!address || address.trim().length < 5) { // Don't fetch for very short addresses
       setShopSuggestions([]);
-      setName(""); // Clear name if address is too short or cleared
+      // Keep name as is, user might be typing manually
+      // setName("");
       return;
     }
     setError(null); // Clear previous errors
     try {
-      // Use relative path for API call
       const response = await fetch(`/api/shops/suggestions?address=${encodeURIComponent(address)}`);
       if (response.ok) {
         const data = await response.json();
@@ -27,12 +36,6 @@ function AddShopForm() {
           setShopSuggestions([]);
         } else {
           setShopSuggestions(data.suggestions || []);
-          // Optionally pre-select the first suggestion if available
-          // if (data.suggestions && data.suggestions.length > 0) {
-          //   setName(data.suggestions[0]);
-          // } else {
-          //   setName(""); // Clear name if no suggestions found
-          // }
         }
       } else {
         console.error("Failed to fetch shop suggestions:", response.statusText);
@@ -46,25 +49,54 @@ function AddShopForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null); // Clear previous errors
+    setError(null);
     setSuccessMessage(null);
-    // setShopSuggestions([]); // Suggestions cleared automatically when location changes or on success
+    setIsSubmitting(true); // Disable button
 
-    // --- IMPORTANT ---
-    // This shopData is missing latitude and longitude, which the backend now requires.
-    // You will need to add logic to get lat/lon (e.g., from a map or geocoding)
-    // and include them here for the form submission to succeed with the backend validation.
-    const shopData = { name, category, location, type /*, latitude, longitude */ };
-    // --- /IMPORTANT ---
+    let latitude = null;
+    let longitude = null;
+    const apiKey = process.env.REACT_APP_GOOGLE_API_KEY; // Get API key from environment
 
+    if (!apiKey) {
+        setError("Geocoding API key is not configured in the frontend environment.");
+        setIsSubmitting(false);
+        return;
+    }
+
+    // --- Step 1: Geocode the location ---
+    try {
+        console.log(`Geocoding address: ${location}`);
+        const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(location)}&key=${apiKey}`;
+        const geocodeResponse = await fetch(geocodeUrl);
+        const geocodeData = await geocodeResponse.json();
+
+        if (geocodeData.status === 'OK' && geocodeData.results && geocodeData.results.length > 0) {
+            const coords = geocodeData.results[0].geometry.location;
+            latitude = coords.lat;
+            longitude = coords.lng;
+            console.log(`Geocoding successful: Lat=${latitude}, Lng=${longitude}`);
+        } else {
+            console.error("Geocoding failed:", geocodeData.status, geocodeData.error_message);
+            setError(`Could not find coordinates for the address: ${location}. Status: ${geocodeData.status}`);
+            setIsSubmitting(false);
+            return; // Stop submission if geocoding fails
+        }
+    } catch (geocodeError) {
+        console.error("Error during geocoding fetch:", geocodeError);
+        setError("An error occurred while verifying the address.");
+        setIsSubmitting(false);
+        return; // Stop submission on fetch error
+    }
+
+    // --- Step 2: Submit shop data (if geocoding succeeded) ---
+    const shopData = { name, category, location, type, latitude, longitude }; // Include coordinates
 
     try {
-      // Use relative path for API call
+      console.log("Submitting shop data:", shopData);
       const response = await fetch("/api/shops", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // Include credentials if your session/auth requires cookies
           'credentials': 'include'
         },
         body: JSON.stringify(shopData)
@@ -75,12 +107,12 @@ function AddShopForm() {
       if (response.ok) {
         console.log("✅ Shop opgeslagen:", data);
         setSuccessMessage(`Shop "${data.name}" added successfully!`);
-        // Optionally clear the form
+        // Clear the form
         setName("");
         setCategory("");
         setLocation("");
         setType("");
-        setShopSuggestions([]); // Clear suggestions on success
+        setShopSuggestions([]);
       } else {
          console.error("❌ Fout bij opslaan:", data.error || response.statusText);
          setError(data.error || `Failed to save shop (${response.status})`);
@@ -89,46 +121,60 @@ function AddShopForm() {
     } catch (submitError) {
       console.error("❌ Fout bij opslaan:", submitError);
       setError("An error occurred while submitting the form.");
+    } finally {
+        setIsSubmitting(false); // Re-enable button
     }
   };
 
-  // No longer needed:
-  // const handleSuggestionClick = (suggestion) => { ... };
+  // Handler for selecting from the suggestion dropdown
+  const handleSuggestionSelect = (selectedValue) => {
+    if (selectedValue) {
+      setName(selectedValue);
+    }
+  };
+
 
   return (
     <form onSubmit={handleSubmit}>
       {error && <p style={{ color: 'red' }}>Error: {error}</p>}
       {successMessage && <p style={{ color: 'green' }}>{successMessage}</p>}
 
-      {/* Conditionally render Input or Select for Name */}
+      {/* Name Input Field (Always Text) */}
       <div>
         <label htmlFor="shop-name">Name:</label>
-        {shopSuggestions.length > 0 ? (
+        <input
+          id="shop-name"
+          type="text"
+          placeholder="Name (Suggestions below if address entered)"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          autoComplete="off"
+          required
+          disabled={isSubmitting}
+        />
+      </div>
+
+      {/* Separate Suggestion Dropdown (Conditional) */}
+      {shopSuggestions.length > 0 && (
+        <div style={{ marginTop: '5px', marginBottom: '10px' }}> {/* Add some spacing */}
+          <label htmlFor="shop-suggestions-select" style={{ marginRight: '5px' }}>Suggestions:</label>
           <select
-            id="shop-name"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            required
+            id="shop-suggestions-select"
+            // Use a temporary value or the current name if it matches a suggestion
+            value={shopSuggestions.includes(name) ? name : ""}
+            onChange={e => handleSuggestionSelect(e.target.value)}
+            disabled={isSubmitting}
           >
-            <option value="">-- Select a shop --</option>
+            <option value="">-- Select a suggested name --</option>
             {shopSuggestions.map((suggestion, index) => (
               <option key={index} value={suggestion}>
                 {suggestion}
               </option>
             ))}
           </select>
-        ) : (
-          <input
-            id="shop-name"
-            type="text"
-            placeholder="Name (Enter address first for suggestions)"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            autoComplete="off"
-            required
-          />
-        )}
-      </div>
+        </div>
+      )}
+
 
       {/* Other Form Fields */}
       <div>
@@ -138,6 +184,7 @@ function AddShopForm() {
           placeholder="Category"
           value={category}
           onChange={e => setCategory(e.target.value)}
+          disabled={isSubmitting}
         />
       </div>
 
@@ -148,9 +195,9 @@ function AddShopForm() {
           placeholder="Location (Address)"
           value={location}
           onChange={e => setLocation(e.target.value)}
-          // Fetch suggestions when user clicks out of the field
           onBlur={(e) => fetchShopSuggestions(e.target.value)}
           required
+          disabled={isSubmitting}
         />
       </div>
 
@@ -161,10 +208,13 @@ function AddShopForm() {
           placeholder="Type (e.g., Supermarket, Cafe)"
           value={type}
           onChange={e => setType(e.target.value)}
+          disabled={isSubmitting}
         />
       </div>
 
-      <button type="submit">Save Shop</button>
+      <button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Saving...' : 'Save Shop'}
+      </button>
     </form>
   );
 }
