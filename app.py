@@ -12,6 +12,7 @@ from flask_cors import CORS
 
 # 🌱 Load environment
 load_dotenv()
+# Removed debug print for GOOGLE_PLACES_API_KEY
 
 # 🔌 MongoDB
 mongo_uri = os.getenv("MONGO_URI")

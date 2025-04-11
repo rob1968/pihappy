@@ -3,6 +3,8 @@ from datetime import datetime # Import datetime
 # Delay importing db to avoid circular import
 # from app import db
 import logging
+import requests # For making API calls
+import os # For accessing environment variables (e.g., API keys)
 from bson import ObjectId # Import ObjectId to handle MongoDB IDs
 # Define the Blueprint
 shop_bp = Blueprint('shop', __name__, url_prefix='/api') # Moved url_prefix here
@@ -127,6 +129,98 @@ def add_shop():
                 shop_to_insert.get("latitude") is not None, shop_to_insert.get("longitude") is not None]):
          logging.warning("POST /shops request missing required fields (name, location, latitude, or longitude).")
          return jsonify({"error": "Missing required fields: name, location, latitude, and longitude"}), 400
+
+    # --- START LOCATION VERIFICATION BLOCK (Two-Step: Geocode + Nearby Search) ---
+    # Ensure the environment variable name here matches the one in your .env file
+    # (e.g., GOOGLE_PLACES_API_KEY=...).
+    GEOCODING_API_KEY = os.environ.get('GOOGLE_PLACES_API_KEY') # Use the variable name from your .env file
+    GEOCODING_API_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json"
+    NEARBY_SEARCH_API_ENDPOINT = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+    VERIFICATION_RADIUS_METERS = 50 # Search radius for the specific name at the geocoded location
+
+    if GEOCODING_API_KEY:
+        geocoded_lat = None
+        geocoded_lng = None
+        shop_name = shop_to_insert.get('name')
+        shop_location = shop_to_insert.get('location')
+
+        # --- Step 1: Geocode the location string ---
+        try:
+            logging.debug(f"Step 1: Geocoding location: '{shop_location}'")
+            geocode_params = {
+                'address': shop_location,
+                'key': GEOCODING_API_KEY
+            }
+            geocode_response = requests.get(GEOCODING_API_ENDPOINT, params=geocode_params, timeout=10)
+            geocode_response.raise_for_status()
+            geocode_data = geocode_response.json()
+
+            if geocode_data.get('status') == 'OK' and geocode_data.get('results'):
+                location_data = geocode_data['results'][0]['geometry']['location']
+                geocoded_lat = location_data.get('lat')
+                geocoded_lng = location_data.get('lng')
+                logging.info(f"Geocoding successful for '{shop_location}': Lat={geocoded_lat}, Lng={geocoded_lng}")
+            elif geocode_data.get('status') == 'ZERO_RESULTS':
+                logging.warning(f"Geocoding failed: Address not found for '{shop_location}'.")
+                return jsonify({"error": "Could not find the provided address. Please check the location details."}), 400
+            else:
+                logging.error(f"Geocoding API returned status '{geocode_data.get('status')}' for '{shop_location}'. Error: {geocode_data.get('error_message', 'N/A')}")
+                # Proceeding without coordinates is not useful for step 2
+                return jsonify({"error": "Failed to verify address due to geocoding error."}), 500
+
+        except requests.exceptions.Timeout:
+            logging.error(f"Geocoding API request timed out for '{shop_location}'.")
+            return jsonify({"error": "Failed to verify address due to API timeout."}), 500
+        except requests.exceptions.RequestException as req_err:
+            logging.error(f"Error calling Geocoding API for '{shop_location}': {req_err}")
+            return jsonify({"error": "Failed to verify address due to API error."}), 500
+        except Exception as geo_err:
+            logging.error(f"Error processing Geocoding API response for '{shop_location}': {geo_err}", exc_info=True)
+            return jsonify({"error": "Failed to process address verification response."}), 500
+
+        # --- Step 2: Nearby Search for the name at the geocoded coordinates ---
+        if geocoded_lat is not None and geocoded_lng is not None:
+            try:
+                logging.debug(f"Step 2: Nearby Search for name '{shop_name}' at {geocoded_lat},{geocoded_lng} (Radius: {VERIFICATION_RADIUS_METERS}m)")
+                nearby_params = {
+                    'location': f"{geocoded_lat},{geocoded_lng}",
+                    'radius': VERIFICATION_RADIUS_METERS,
+                    'keyword': shop_name, # Use keyword to strongly bias towards the name
+                    'key': GEOCODING_API_KEY
+                }
+                nearby_response = requests.get(NEARBY_SEARCH_API_ENDPOINT, params=nearby_params, timeout=10)
+                nearby_response.raise_for_status()
+                nearby_data = nearby_response.json()
+
+                if nearby_data.get('status') == 'OK' and nearby_data.get('results'):
+                    # Found at least one match nearby with the keyword
+                    logging.info(f"Nearby Search successful: Found potential match(es) for '{shop_name}' near {geocoded_lat},{geocoded_lng}.")
+                    # Verification successful, proceed with insertion
+                elif nearby_data.get('status') == 'ZERO_RESULTS':
+                    logging.warning(f"Nearby Search failed: No place named '{shop_name}' found within {VERIFICATION_RADIUS_METERS}m of the provided address ({geocoded_lat},{geocoded_lng}).")
+                    return jsonify({"error": f"Could not find a shop named '{shop_name}' at the specified address. Please check the name and location."}), 400
+                else:
+                    logging.error(f"Nearby Search API returned status '{nearby_data.get('status')}' for '{shop_name}' near {geocoded_lat},{geocoded_lng}. Error: {nearby_data.get('error_message', 'N/A')}")
+                    # Decide whether to block or proceed with warning. Blocking is safer for strict validation.
+                    return jsonify({"error": "Failed to verify shop name at address due to API error."}), 500
+
+            except requests.exceptions.Timeout:
+                logging.error(f"Nearby Search API request timed out for '{shop_name}' near {geocoded_lat},{geocoded_lng}.")
+                return jsonify({"error": "Failed to verify shop name at address due to API timeout."}), 500
+            except requests.exceptions.RequestException as req_err:
+                logging.error(f"Error calling Nearby Search API for '{shop_name}' near {geocoded_lat},{geocoded_lng}: {req_err}")
+                return jsonify({"error": "Failed to verify shop name at address due to API error."}), 500
+            except Exception as nearby_err:
+                logging.error(f"Error processing Nearby Search API response for '{shop_name}' near {geocoded_lat},{geocoded_lng}: {nearby_err}", exc_info=True)
+                return jsonify({"error": "Failed to process shop name verification response."}), 500
+        else:
+             # This case should technically not be reached if geocoding succeeded, but handle defensively
+             logging.error("Nearby Search skipped because geocoded coordinates were missing.")
+             return jsonify({"error": "Internal error during address verification."}), 500
+
+    else:
+        logging.warning("GOOGLE_PLACES_API_KEY environment variable not set. Skipping shop location verification.")
+    # --- END LOCATION VERIFICATION BLOCK ---
 
     try:
         # Insert the document
@@ -318,3 +412,85 @@ def update_shop(shop_id):
     except Exception as e:
         logging.error(f"Error updating shop {shop_id} for user {user_id}: {e}", exc_info=True)
         return jsonify({"error": "Failed to update shop"}), 500
+
+
+@shop_bp.route("/shops/suggestions", methods=["GET"])
+def get_shop_suggestions():
+    """
+    Provides shop name suggestions based on an address query parameter.
+    Uses Geocoding API + Nearby Search API.
+    """
+    address = request.args.get('address')
+    if not address:
+        return jsonify({"error": "Missing 'address' query parameter"}), 400
+
+    GEOCODING_API_KEY = os.environ.get('GOOGLE_PLACES_API_KEY')
+    if not GEOCODING_API_KEY:
+        logging.error("GOOGLE_PLACES_API_KEY not set, cannot provide suggestions.")
+        # Return empty list instead of error? Or 503 Service Unavailable?
+        return jsonify({"suggestions": [], "error": "API key not configured"}), 503
+
+    GEOCODING_API_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json"
+    NEARBY_SEARCH_API_ENDPOINT = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+    SUGGESTION_RADIUS_METERS = 100 # Radius to search for businesses near the address
+
+    geocoded_lat = None
+    geocoded_lng = None
+
+    # --- Step 1: Geocode the address ---
+    try:
+        logging.debug(f"Suggestions Step 1: Geocoding address: '{address}'")
+        geocode_params = {'address': address, 'key': GEOCODING_API_KEY}
+        geocode_response = requests.get(GEOCODING_API_ENDPOINT, params=geocode_params, timeout=7)
+        geocode_response.raise_for_status()
+        geocode_data = geocode_response.json()
+
+        if geocode_data.get('status') == 'OK' and geocode_data.get('results'):
+            location_data = geocode_data['results'][0]['geometry']['location']
+            geocoded_lat = location_data.get('lat')
+            geocoded_lng = location_data.get('lng')
+            logging.info(f"Suggestions Geocoding successful for '{address}': Lat={geocoded_lat}, Lng={geocoded_lng}")
+        else:
+            # If geocoding fails, we can't get nearby suggestions
+            logging.warning(f"Suggestions Geocoding failed or ZERO_RESULTS for '{address}'. Status: {geocode_data.get('status')}")
+            return jsonify({"suggestions": []}), 200 # Return empty list if address not found
+
+    except requests.exceptions.RequestException as req_err:
+        logging.error(f"Suggestions Geocoding API error for '{address}': {req_err}")
+        return jsonify({"error": "Failed to contact geocoding service"}), 500
+    except Exception as geo_err:
+        logging.error(f"Suggestions Geocoding processing error for '{address}': {geo_err}", exc_info=True)
+        return jsonify({"error": "Failed to process geocoding response"}), 500
+
+    # --- Step 2: Nearby Search for businesses at the coordinates ---
+    suggestions = []
+    if geocoded_lat is not None and geocoded_lng is not None:
+        try:
+            logging.debug(f"Suggestions Step 2: Nearby Search at {geocoded_lat},{geocoded_lng} (Radius: {SUGGESTION_RADIUS_METERS}m)")
+            nearby_params = {
+                'location': f"{geocoded_lat},{geocoded_lng}",
+                'radius': SUGGESTION_RADIUS_METERS,
+                # 'type': 'store', # Optional: filter by type(s) like 'store', 'restaurant', etc.
+                'key': GEOCODING_API_KEY
+            }
+            nearby_response = requests.get(NEARBY_SEARCH_API_ENDPOINT, params=nearby_params, timeout=7)
+            nearby_response.raise_for_status()
+            nearby_data = nearby_response.json()
+
+            if nearby_data.get('status') == 'OK' and nearby_data.get('results'):
+                suggestions = [place.get('name') for place in nearby_data['results'] if place.get('name')]
+                # Optional: Filter out duplicates or very generic names if needed
+                suggestions = sorted(list(set(suggestions))) # Remove duplicates and sort
+                logging.info(f"Suggestions Nearby Search successful: Found {len(suggestions)} potential names near '{address}'.")
+            else:
+                logging.warning(f"Suggestions Nearby Search status not OK or ZERO_RESULTS for {geocoded_lat},{geocoded_lng}. Status: {nearby_data.get('status')}")
+                # Return empty list if no businesses found nearby
+
+        except requests.exceptions.RequestException as req_err:
+            logging.error(f"Suggestions Nearby Search API error near {geocoded_lat},{geocoded_lng}: {req_err}")
+            # Don't return 500, just return empty suggestions
+        except Exception as nearby_err:
+            logging.error(f"Suggestions Nearby Search processing error near {geocoded_lat},{geocoded_lng}: {nearby_err}", exc_info=True)
+            # Don't return 500, just return empty suggestions
+
+    return jsonify({"suggestions": suggestions}), 200
