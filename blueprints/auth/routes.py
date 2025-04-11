@@ -294,52 +294,22 @@ def update_profile(user_id=None):
     if new_naam is not None and isinstance(new_naam, str):
         allowed_updates["naam"] = new_naam.strip() # Trim whitespace
 
-    new_land_code = data.get("land") # Expecting the code (e.g., 'nl')
+    # Handle 'land' (country code) update
+    new_land_code = data.get("land")
     if new_land_code is not None and isinstance(new_land_code, str):
-        new_land_code = new_land_code.strip()
-        allowed_updates["land"] = new_land_code # Store the new code
-
-        # --- Attempt to derive and update full_land_name ---
-        derived_full_country_name = None
-        GEOCODING_API_KEY = os.environ.get('GOOGLE_PLACES_API_KEY')
-        if GEOCODING_API_KEY:
-            GEOCODING_API_ENDPOINT = "https://maps.googleapis.com/maps/api/geocode/json"
-            # Geocode using the new land code provided in the update
-            geocode_params = {'address': new_land_code, 'key': GEOCODING_API_KEY}
-            try:
-                logging.debug(f"Geocoding new country during profile update: {new_land_code}")
-                geocode_response = requests.get(GEOCODING_API_ENDPOINT, params=geocode_params, timeout=5)
-                geocode_response.raise_for_status()
-                geocode_data = geocode_response.json()
-
-                if geocode_data.get('status') == 'OK' and geocode_data.get('results'):
-                    for component in geocode_data['results'][0].get('address_components', []):
-                        if 'country' in component.get('types', []):
-                            derived_full_country_name = component.get('long_name')
-                            logging.info(f"Derived full country name for update: {derived_full_country_name} from input: {new_land_code}")
-                            break
-                    if not derived_full_country_name:
-                         logging.warning(f"Could not find 'country' component in geocoding result for update: {new_land_code}")
-                else:
-                    logging.warning(f"Geocoding failed for country '{new_land_code}' during profile update. Status: {geocode_data.get('status')}")
-
-            except requests.exceptions.RequestException as geo_err:
-                logging.error(f"Error calling Geocoding API for country '{new_land_code}' during profile update: {geo_err}")
-            except Exception as geo_proc_err:
-                logging.error(f"Error processing Geocoding response for country '{new_land_code}' during profile update: {geo_proc_err}", exc_info=True)
-        else:
-             logging.error("GOOGLE_PLACES_API_KEY not set, cannot derive full country name during profile update.")
-
-        # Add the derived name (or None) to the updates
-        allowed_updates["full_land_name"] = derived_full_country_name
-        # --- End derive and update full_land_name ---
-
-        # Optionally update country_lang if land changes and utility exists
+        allowed_updates["land"] = new_land_code.strip()
+        # Update country_lang based on the new code
         try:
-            allowed_updates["country_lang"] = get_country_language(new_land_code)
+            allowed_updates["country_lang"] = get_country_language(allowed_updates["land"])
         except Exception as lang_err:
-            logging.warning(f"Could not determine country language for {new_land_code}: {lang_err}")
-            # Decide if you want to proceed without country_lang or handle differently
+            logging.warning(f"Could not determine country language for {allowed_updates['land']}: {lang_err}")
+
+    # Handle 'full_country_name' update (sent directly from frontend)
+    new_full_country_name = data.get("full_country_name")
+    if new_full_country_name is not None and isinstance(new_full_country_name, str):
+         allowed_updates["full_land_name"] = new_full_country_name.strip() # Store the full name provided
+
+    # --- REMOVED Geocoding logic to derive full_land_name ---
 
     new_language = data.get("language")
     if new_language is not None and isinstance(new_language, str):
