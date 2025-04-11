@@ -5,7 +5,7 @@ import './MainPage.css'; // Import the CSS
 const MainPage = () => {
     // State for various parts of the page
     const [laatsteStemming, setLaatsteStemming] = useState(null); // Last mood voted
-    const [stemmingToegestaan, setStemmingToegestaan] = useState(true); // Can vote mood?
+    const [stemmingToegestaan, setStemmingToegestaan] = useState(null); // Can vote mood? Initialize as null
     const [eigenFeedback, setEigenFeedback] = useState(''); // AI feedback for user
     const [feedbackVisible, setFeedbackVisible] = useState(true);
     const [chatMessages, setChatMessages] = useState([]);
@@ -444,7 +444,7 @@ const MainPage = () => {
             )}
 
             {/* Mood Voting Form */}
-            {stemmingToegestaan && (
+            {stemmingToegestaan === true && ( // Explicitly check for true
                 <form onSubmit={(e) => e.preventDefault()}> {/* Prevent default form submission */}
                     <label>How are you feeling right now?</label>
                     <div className="mood-columns">
