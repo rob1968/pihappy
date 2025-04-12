@@ -367,12 +367,12 @@ function ProfilePage() {
     <> {/* Use Fragment to wrap Menu and container */}
       <MainMenu />
     <div className="profile-container container mt-4">
-      <h1>Your Profile</h1>
+      <h1>Settings</h1>
       {error && <p className="error text-danger">Error loading profile data: {error}</p>}
 
       <div className="card mb-4">
         <div className="card-header d-flex justify-content-between align-items-center">
-          User Information
+          User
           <div>
             {!isEditingProfile && (
               <button className="btn btn-sm btn-outline-secondary me-2" onClick={handleProfileEditClick}>Edit Profile</button>
