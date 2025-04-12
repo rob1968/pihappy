@@ -348,15 +348,26 @@ function Pilocations() {
                 onChange={(e) => setNewShopName(e.target.value)}
                 required
                 disabled={addShopLoading}
-                list="shop-name-suggestions" // Link input to datalist
                 autoComplete="off" // Prevent browser autocomplete interfering
               />
-              {/* Datalist for suggestions */}
-              <datalist id="shop-name-suggestions">
-                {shopSuggestions.map((suggestion, index) => (
-                  <option key={index} value={suggestion} />
-                ))}
-              </datalist>
+              {/* Custom Suggestions Dropdown */}
+              {shopSuggestions.length > 0 && (
+                <div className="list-group position-absolute" style={{ zIndex: 1000, width: 'calc(100% - 1rem)' }}> {/* Basic styling for dropdown */}
+                  {shopSuggestions.map((suggestion, index) => (
+                    <button
+                      type="button" // Important: prevent form submission
+                      key={index}
+                      className="list-group-item list-group-item-action"
+                      onClick={() => {
+                        setNewShopName(suggestion); // Set input value
+                        setShopSuggestions([]); // Clear suggestions to hide dropdown
+                      }}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* REMOVED Separate Suggestion Dropdown */}
