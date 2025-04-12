@@ -467,6 +467,54 @@ def update_shop(shop_id):
     except Exception as e:
         logging.error(f"Error updating shop {shop_id} for user {user_id}: {e}", exc_info=True)
         return jsonify({"error": "Failed to update shop"}), 500
+ 
+ 
+@shop_bp.route("/shops/<shop_id>", methods=["DELETE"])
+def delete_shop(shop_id):
+    if 'gebruiker' not in session or 'id' not in session['gebruiker']:
+        return jsonify({"error": "Authentication required"}), 401
+ 
+    user_id = session['gebruiker']['id']
+    try:
+        user_object_id = ObjectId(user_id)
+        shop_object_id = ObjectId(shop_id)
+    except Exception as e:
+        logging.error(f"Invalid ID format provided for delete: {e}")
+        return jsonify({"error": "Invalid ID format for shop"}), 400
+ 
+    logging.debug(f"Attempting to delete shop {shop_id} by user {user_id}")
+ 
+    try:
+        # Import db here, inside the function
+        from app import db
+ 
+        # Find the shop to verify ownership before deleting
+        shop_to_delete = db.shops.find_one({"_id": shop_object_id, "userId": user_object_id})
+ 
+        if not shop_to_delete:
+            # Check if the shop exists but belongs to someone else
+            shop_exists = db.shops.find_one({"_id": shop_object_id})
+            if shop_exists:
+                logging.warning(f"User {user_id} attempted to delete shop {shop_id} owned by another user ({shop_exists.get('userId')})")
+                return jsonify({"error": "Forbidden: You do not own this shop"}), 403
+            else:
+                logging.warning(f"Shop {shop_id} not found for delete attempt by user {user_id}")
+                return jsonify({"error": "Shop not found"}), 404
+ 
+        # Perform the delete operation
+        delete_result = db.shops.delete_one({"_id": shop_object_id})
+ 
+        if delete_result.deleted_count == 1:
+            logging.info(f"Shop {shop_id} deleted successfully by user {user_id}")
+            return jsonify({"message": "Shop deleted successfully"}), 200
+        else:
+            # This case should ideally not happen if find_one succeeded, but handle defensively
+            logging.error(f"Shop {shop_id} found but failed to delete for user {user_id}. Delete count: {delete_result.deleted_count}")
+            return jsonify({"error": "Failed to delete shop after verification"}), 500
+ 
+    except Exception as e:
+        logging.error(f"Error deleting shop {shop_id} for user {user_id}: {e}", exc_info=True)
+        return jsonify({"error": "Failed to delete shop"}), 500
 
 
 @shop_bp.route("/shops/suggestions", methods=["GET"])

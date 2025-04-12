@@ -315,6 +315,39 @@ function ProfilePage() {
     });
   };
 
+  // --- Delete Shop Handler ---
+  const handleShopDeleteClick = (shopId, shopName) => {
+    if (window.confirm(`Are you sure you want to delete the location "${shopName}"? This action cannot be undone.`)) {
+      // Consider adding a loading state for delete if needed
+      fetch(`/api/shops/${shopId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+      .then(response => {
+        if (!response.ok) {
+          return response.json().then(errData => {
+             throw new Error(errData.error || `HTTP error! status: ${response.status}`);
+          });
+        }
+        // Handle potential 204 No Content response
+        if (response.status === 204) {
+            return { message: "Shop deleted successfully" }; // Simulate success data
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log("Shop deleted successfully", data);
+        fetchUserShops(); // Refresh the list after deletion
+        // Optionally show a success message
+        alert(`Location "${shopName}" deleted successfully.`);
+      })
+      .catch(err => {
+        console.error("Error deleting shop:", err);
+        alert(`Failed to delete location: ${err.message}`);
+      });
+    }
+  };
+
 
   // --- Helper: Map language code to full name ---
   const languageCodeToName = {
@@ -505,7 +538,10 @@ function ProfilePage() {
                         <small className="text-muted">{shop.location}</small><br/>
                         <small>Category: {shop.category || 'N/A'} | Sales Channel: {shop.type || 'N/A'}</small>
                       </div>
-                      <button className="btn btn-sm btn-outline-primary" onClick={() => handleShopEditClick(shop)}>Edit</button>
+                      <div> {/* Wrap buttons */}
+                        <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleShopEditClick(shop)}>Edit</button>
+                        <button className="btn btn-sm btn-outline-danger" onClick={() => handleShopDeleteClick(shop._id, shop.name)}>Delete</button>
+                      </div>
                     </div>
                   )}
                 </li>
