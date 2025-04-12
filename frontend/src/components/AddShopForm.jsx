@@ -146,7 +146,7 @@ function AddShopForm() {
         <input
           id="shop-name"
           type="text"
-          placeholder="Name (Suggestions below if address entered)"
+          placeholder="Name (Suggestions appear after entering address)"
           value={name}
           onChange={e => setName(e.target.value)}
           autoComplete="off"

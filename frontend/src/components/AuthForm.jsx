@@ -94,7 +94,7 @@ const AuthForm = () => {
 
       // <<< MODIFIED: Include gekozenLandNaam in validation >>>
       if (!name || !email || !password || !gekozenLandCode || !gekozenLandNaam || !gekozenTaal) {
-          alert("Please fill in all required fields (Name, Email, Password, Country, Language). Ensure country is selected.");
+          alert("Please fill in all required fields: Name, Email, Password, Country, and Language.");
           return;
       }
 

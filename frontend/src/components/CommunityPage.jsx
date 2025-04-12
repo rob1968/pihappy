@@ -265,7 +265,7 @@ const CommunityPage = () => {
             <h2>📊 Community Statistics</h2>
             <div id="statistieken_resultaat">
                 <p><strong>🔍 Popular Topics:</strong> <span id="populaireThemas">{populaireThemas}</span></p>
-                <p><strong>🏆 Contributors:</strong> <span id="topBijdragers">{topBijdragers}</span></p>
+                <p><strong>🏆 Top Contributors:</strong> <span id="topBijdragers">{topBijdragers}</span></p>
                 {/* Display Country Counts */}
                 <div>
                     <strong>🌍 Inputs by Country:</strong>
