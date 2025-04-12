@@ -38,7 +38,7 @@ function Pilocations() {
   const [shopSuggestions, setShopSuggestions] = useState([]); // State for name suggestions
   const [panToCoords, setPanToCoords] = useState(null); // State to trigger panning { id, lat, lng }
   const [panToShopId, setPanToShopId] = useState(null); // <<< State to trigger panning to a new shop
- 
+
   const mapRef = useRef(); // To store map instance
   const autocompleteRef = useRef(null); // Ref for Autocomplete input
 
@@ -261,8 +261,13 @@ function Pilocations() {
           console.warn("Suggestion API returned an error:", data.error);
           setShopSuggestions([]);
         } else {
-          setShopSuggestions(data.suggestions || []);
-          // Suggestions are now handled by datalist, no need to clear name here.
+          const suggestions = data.suggestions || [];
+          setShopSuggestions(suggestions); // Update the suggestions list
+          // If exactly one suggestion is returned, pre-fill the name field
+          if (suggestions.length === 1) {
+            setNewShopName(suggestions[0]);
+            console.log(`Prefilled name with single suggestion: ${suggestions[0]}`);
+          }
         }
       } else {
         console.error("Failed to fetch shop suggestions:", response.statusText);
@@ -293,7 +298,7 @@ function Pilocations() {
   }, [newShopLocation, newShopLatitude, newShopLongitude, fetchShopSuggestions]);
 
   // --- End Shop Name Suggestion Logic ---
- 
+
   // Effect to pan and zoom to newly added shop coordinates
   useEffect(() => {
     // Check if we have coordinates to pan to, a map instance, and the map center state is ready
