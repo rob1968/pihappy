@@ -536,7 +536,9 @@ function ProfilePage() {
                       <div>
                         <strong>{shop.name}</strong><br />
                         <small className="text-muted">{shop.location}</small><br/>
-                        <small>Category: {shop.category || 'N/A'} | Sales Channel: {shop.type || 'N/A'}</small>
+                        <small>Category: {shop.category || 'N/A'} | Sales Channel: {shop.type || 'N/A'}</small><br/>
+                        {shop.phone && <small>Phone: {shop.phone} | </small>}
+                        {shop.website && <small>Website: <a href={shop.website} target="_blank" rel="noopener noreferrer">{shop.website}</a></small>}
                       </div>
                       <div> {/* Wrap buttons */}
                         <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleShopEditClick(shop)}>Edit</button>
