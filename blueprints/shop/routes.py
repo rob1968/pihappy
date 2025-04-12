@@ -30,7 +30,8 @@ def format_shop_for_frontend(doc):
         'latitude': None, # Default to None
         'longitude': None, # Default to None
         'phone': doc.get('phone'), # <<< ADDED phone
-        'website': doc.get('website') # <<< ADDED website
+        'website': doc.get('website'), # <<< ADDED website
+        'userId': str(doc.get('userId')) if doc.get('userId') else None # <<< ADDED userId (as string)
     }
 
     # Safely convert latitude/Latitude to float, prioritizing lowercase
@@ -123,7 +124,9 @@ def add_shop():
         "longitude": data.get("longitude"), # Get longitude from request
         "type": data.get("type"),
         "timestamp": datetime.utcnow(), # Add current UTC timestamp
-        "userId": ObjectId(user_id) # Store the owner's ID as ObjectId
+        "userId": ObjectId(user_id), # Store the owner's ID as ObjectId
+        "phone": data.get("phone"), # <<< ADDED phone from request
+        "website": data.get("website") # <<< ADDED website from request
     }
 
     # Validate required fields, including coordinates now
@@ -438,6 +441,12 @@ def update_shop(shop_id):
         if "longitude" in data:
             allowed_updates["longitude"] = data["longitude"]
         if "type" in data:
+            allowed_updates["type"] = data["type"]
+        if "phone" in data: # <<< ADDED phone update check
+            allowed_updates["phone"] = data["phone"]
+        if "website" in data: # <<< ADDED website update check
+            allowed_updates["website"] = data["website"]
+        # Add other updatable fields as needed
             allowed_updates["type"] = data["type"]
         # Add other updatable fields as needed
 

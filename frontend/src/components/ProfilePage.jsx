@@ -19,7 +19,8 @@ function ProfilePage() {
 
   // <<< State for editing shops >>>
   const [editingShopId, setEditingShopId] = useState(null); // ID of the shop being edited
-  const [editShopFormData, setEditShopFormData] = useState({ name: '', category: '', type: '' });
+  // <<< Add phone and website to edit state >>>
+  const [editShopFormData, setEditShopFormData] = useState({ name: '', category: '', type: '', phone: '', website: '' });
   const [isSavingShop, setIsSavingShop] = useState(false);
   const [editShopError, setEditShopError] = useState(null);
   const [availableCategories, setAvailableCategories] = useState([]); // For category dropdown in edit
@@ -255,10 +256,13 @@ function ProfilePage() {
   // --- Edit Shop Handlers ---
   const handleShopEditClick = (shop) => {
     setEditingShopId(shop._id);
+    // <<< Initialize phone and website in edit state >>>
     setEditShopFormData({
       name: shop.name || '',
       category: shop.category || '',
-      type: shop.type || '' // Use 'type' for sales channel
+      type: shop.type || '', // Use 'type' for sales channel
+      phone: shop.phone || '',
+      website: shop.website || ''
     });
     setEditShopError(null);
   };
@@ -280,11 +284,13 @@ function ProfilePage() {
     setIsSavingShop(true);
     setEditShopError(null);
 
-    // Only send fields that are being edited
+    // <<< Include phone and website in data to save >>>
     const dataToSave = {
         name: editShopFormData.name,
         category: editShopFormData.category,
         type: editShopFormData.type, // Sales channel
+        phone: editShopFormData.phone,
+        website: editShopFormData.website,
     };
 
     fetch(`/api/shops/${shopId}`, {
@@ -367,12 +373,12 @@ function ProfilePage() {
     <> {/* Use Fragment to wrap Menu and container */}
       <MainMenu />
     <div className="profile-container container mt-4">
-      <h1>Settings</h1>
+      <h1>Your Profile</h1>
       {error && <p className="error text-danger">Error loading profile data: {error}</p>}
 
       <div className="card mb-4">
         <div className="card-header d-flex justify-content-between align-items-center">
-          User
+          User Information
           <div>
             {!isEditingProfile && (
               <button className="btn btn-sm btn-outline-secondary me-2" onClick={handleProfileEditClick}>Edit Profile</button>
@@ -521,6 +527,32 @@ function ProfilePage() {
                            <option value="Online">Online</option>
                            <option value="Offline & Online">Offline & Online</option>
                          </select>
+                      </div>
+                      {/* <<< Add Phone Input >>> */}
+                      <div className="mb-2">
+                        <label htmlFor={`editShopPhone-${shop._id}`} className="form-label form-label-sm">Phone:</label>
+                        <input
+                          type="tel" // Use tel type for phone numbers
+                          className="form-control form-control-sm"
+                          id={`editShopPhone-${shop._id}`}
+                          name="phone"
+                          value={editShopFormData.phone}
+                          onChange={handleShopInputChange}
+                          placeholder="(Optional)"
+                        />
+                      </div>
+                      {/* <<< Add Website Input >>> */}
+                      <div className="mb-2">
+                        <label htmlFor={`editShopWebsite-${shop._id}`} className="form-label form-label-sm">Website:</label>
+                        <input
+                          type="url" // Use url type for websites
+                          className="form-control form-control-sm"
+                          id={`editShopWebsite-${shop._id}`}
+                          name="website"
+                          value={editShopFormData.website}
+                          onChange={handleShopInputChange}
+                          placeholder="(Optional) e.g., https://example.com"
+                        />
                       </div>
                       <div className="mt-2">
                         <button className="btn btn-sm btn-success me-2" onClick={() => handleShopSaveClick(shop._id)} disabled={isSavingShop}>

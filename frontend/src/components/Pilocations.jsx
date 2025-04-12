@@ -35,6 +35,8 @@ function Pilocations() {
   const [newShopLongitude, setNewShopLongitude] = useState(null); // State for longitude
   const [newShopType, setNewShopType] = useState(""); // <<< Changed default state for dropdown
   const [addShopError, setAddShopError] = useState(null);
+  const [newShopPhone, setNewShopPhone] = useState(""); // <<< State for phone
+  const [newShopWebsite, setNewShopWebsite] = useState(""); // <<< State for website
   const [addShopLoading, setAddShopLoading] = useState(false);
   const [refreshData, setRefreshData] = useState(0); // Counter to trigger data refresh
   const [shopSuggestions, setShopSuggestions] = useState([]); // State for name suggestions
@@ -209,6 +211,8 @@ function Pilocations() {
       latitude: submittedLat, // Use stored coords
       longitude: submittedLng, // Use stored coords
       type: newShopType, // Use the state variable for the dropdown
+      phone: newShopPhone, // <<< Add phone
+      website: newShopWebsite, // <<< Add website
     };
 
     fetch('/api/shops', {
@@ -240,6 +244,8 @@ function Pilocations() {
       setNewShopLatitude(null);
       setNewShopLongitude(null);
       setNewShopType(""); // Reset dropdown to default
+      setNewShopPhone(""); // <<< Clear phone
+      setNewShopWebsite(""); // <<< Clear website
       setShopSuggestions([]);
       setShowAddShopForm(false);
       setRefreshData(prev => prev + 1); // Trigger data refresh AFTER panning (or doesn't matter much)
@@ -500,6 +506,34 @@ function Pilocations() {
                      </option>
                    ))}
                  </select>
+              </div>
+
+              {/* <<< Added Phone Input >>> */}
+              <div className="mb-3">
+                <label htmlFor="newShopPhone" className="form-label">Phone (Optional)</label>
+                <input
+                  type="tel" // Use type="tel" for phone numbers
+                  id="newShopPhone"
+                  className="form-control"
+                  placeholder="e.g., +31 6 12345678"
+                  value={newShopPhone}
+                  onChange={(e) => setNewShopPhone(e.target.value)}
+                  disabled={addShopLoading}
+                />
+              </div>
+
+              {/* <<< Added Website Input >>> */}
+              <div className="mb-3">
+                <label htmlFor="newShopWebsite" className="form-label">Website (Optional)</label>
+                <input
+                  type="url" // Use type="url" for websites
+                  id="newShopWebsite"
+                  className="form-control"
+                  placeholder="e.g., https://www.example.com"
+                  value={newShopWebsite}
+                  onChange={(e) => setNewShopWebsite(e.target.value)}
+                  disabled={addShopLoading}
+                />
               </div>
 
               {/* Sales Channel Dropdown (Replaced Type Input) */}
