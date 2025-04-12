@@ -36,7 +36,8 @@ function Pilocations() {
   const [addShopLoading, setAddShopLoading] = useState(false);
   const [refreshData, setRefreshData] = useState(0); // Counter to trigger data refresh
   const [shopSuggestions, setShopSuggestions] = useState([]); // State for name suggestions
-
+  const [panToShopId, setPanToShopId] = useState(null); // <<< State to trigger panning to a new shop
+ 
   const mapRef = useRef(); // To store map instance
   const autocompleteRef = useRef(null); // Ref for Autocomplete input
 
@@ -216,24 +217,10 @@ function Pilocations() {
     .then(newShop => { // newShop here is the object returned by the backend
       console.log("Shop added successfully:", newShop);
 
-      // --- Pan map to new location ---
-      const targetCoords = { lat: submittedLat, lng: submittedLng };
-      if (mapRef.current && targetCoords.lat && targetCoords.lng) {
-          console.log(`Attempting to pan map to: ${targetCoords.lat}, ${targetCoords.lng}`);
-          // Use setTimeout to allow map state to potentially update after refresh trigger
-          setTimeout(() => {
-              if (mapRef.current) { // Double-check ref still exists
-                 mapRef.current.panTo(targetCoords);
-                 mapRef.current.setZoom(15); // Zoom in to the new location
-                 console.log("Map panTo and setZoom called.");
-              } else {
-                 console.warn("Map reference became null before panning could execute.");
-              }
-          }, 100); // 100ms delay, adjust if needed
-      } else {
-          console.warn("Map reference or coordinates missing, cannot pan.", { hasMapRef: !!mapRef.current, coords: targetCoords });
-      }
-      // --- End Pan map ---
+      // --- Trigger panning/zooming via state update ---
+      setPanToShopId(newShop._id); // Set the ID of the shop to pan to
+      // The useEffect below will handle the actual map movement
+      // --- End Trigger ---
 
       // Clear form and hide it
       setNewShopName("");
@@ -305,6 +292,27 @@ function Pilocations() {
   }, [newShopLocation, newShopLatitude, newShopLongitude, fetchShopSuggestions]);
 
   // --- End Shop Name Suggestion Logic ---
+ 
+  // Effect to pan and zoom to a newly added shop
+  useEffect(() => {
+    // Check if we have an ID to pan to, a map instance, and shops loaded
+    if (panToShopId && mapRef.current && winkels.length > 0) {
+      // Find the shop details in the current list
+      const shopToPanTo = winkels.find(shop => shop._id === panToShopId);
+ 
+      // If found and has valid coordinates
+      if (shopToPanTo && typeof shopToPanTo.latitude === 'number' && typeof shopToPanTo.longitude === 'number') {
+        const targetCoords = { lat: shopToPanTo.latitude, lng: shopToPanTo.longitude };
+        console.log(`useEffect: Panning and zooming to shop ID ${panToShopId}`, targetCoords);
+        mapRef.current.panTo(targetCoords);
+        mapRef.current.setZoom(15);
+        setPanToShopId(null); // Reset the state variable to prevent re-panning on subsequent renders
+      } else {
+         // Log if the shop wasn't found (might happen briefly if winkels updates slightly after panToShopId)
+         console.log(`useEffect: Shop with ID ${panToShopId} not found in winkels list yet, or missing coords.`);
+      }
+    }
+  }, [panToShopId, winkels, mapRef]); // Dependencies: trigger ID, shop list, map instance
 
 
   if (!MAP_API_KEY) {
