@@ -24,7 +24,7 @@ def format_shop_for_frontend(doc):
         'name': doc.get('name', doc.get('Name')), # Prioritize lowercase 'name'
         'category': doc.get('Category'), # Assuming 'Category' might exist
         'location': doc.get('location', doc.get('Location')), # Prioritize lowercase 'location'
-        'type': doc.get('Type'), # Use 'Type' from DB
+        'type': doc.get('type'), # Use lowercase 'type' from DB
         'detail_url': doc.get('Detail URL'),
         'image_url': doc.get('Image URL'),
         'latitude': None, # Default to None
@@ -448,6 +448,7 @@ def update_shop(shop_id):
         allowed_updates["last_updated"] = datetime.utcnow()
 
         # Perform the update
+        logging.debug(f"Attempting to update shop {shop_id} with data: {allowed_updates}") # <<< Log data before update
         update_result = db.shops.update_one(
             {"_id": shop_object_id}, # Filter by shop ID (ownership already verified)
             {"$set": allowed_updates}
