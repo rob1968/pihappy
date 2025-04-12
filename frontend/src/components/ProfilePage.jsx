@@ -62,7 +62,7 @@ function ProfilePage() {
   // Fetch profile data on initial load or when userId changes
   useEffect(() => {
     fetchProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Removed eslint-disable-next-line comment as rule definition seems missing
   }, [userId]); // Depend only on userId
 
   // Fetch countries for the dropdown

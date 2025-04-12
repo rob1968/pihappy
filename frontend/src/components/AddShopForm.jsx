@@ -127,9 +127,10 @@ function AddShopForm() {
   };
 
   // Handler for selecting from the suggestion dropdown
-  const handleSuggestionSelect = (selectedValue) => {
+  const handleSuggestionSelect = (e) => {
+    const selectedValue = e.target.value;
     if (selectedValue) {
-      setName(selectedValue);
+      setName(selectedValue); // Update the main name input state
     }
   };
 
@@ -160,9 +161,8 @@ function AddShopForm() {
           <label htmlFor="shop-suggestions-select" style={{ marginRight: '5px' }}>Suggestions:</label>
           <select
             id="shop-suggestions-select"
-            // Use a temporary value or the current name if it matches a suggestion
-            value={shopSuggestions.includes(name) ? name : ""}
-            onChange={e => handleSuggestionSelect(e.target.value)}
+            // Let the dropdown trigger the name change via onChange, no need for controlled value prop here
+            onChange={handleSuggestionSelect}
             disabled={isSubmitting}
           >
             <option value="">-- Select a suggested name --</option>

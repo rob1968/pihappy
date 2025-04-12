@@ -140,4 +140,4 @@ def vind_winkel_in_buurt(gebruiker_locatie):
     if dichtstbijzijnde_winkel:
         return f"🏪 {dichtstbijzijnde_winkel['winkelnaam']} 📍 {dichtstbijzijnde_winkel['locatie']} ({kleinste_afstand:.2f} km van jou)"
 
-    return "🚫 Geen winkels gevonden binnen 10 km."
+    return f"🚫 Geen winkels gevonden binnen 10 km van {gebruiker_locatie}. Wil je een nieuwe winkel toevoegen op deze locatie?"

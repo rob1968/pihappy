@@ -12,9 +12,10 @@ const AuthForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState(""); // Register only
-  const [landen, setLanden] = useState([]); // Register only
+  const [landen, setLanden] = useState([]); // Register only - Array of { code: 'xx', naam: 'Country Name' }
   // Removed heeftWinkel, winkelnaam, locatie state
-  const [gekozenLand, setGekozenLand] = useState(""); // Register only
+  const [gekozenLandCode, setGekozenLandCode] = useState(""); // <<< RENAMED: Store country code
+  const [gekozenLandNaam, setGekozenLandNaam] = useState(""); // <<< ADDED: Store full country name
   const [gekozenTaal, setGekozenTaal] = useState(""); // Register only - Preferred Language
 
   const navigate = useNavigate();
@@ -38,6 +39,22 @@ const AuthForm = () => {
 
   // Removed onPlaceChanged and handleWinkelChange handlers
 
+  // --- ADDED: Handler for country dropdown change ---
+  const handleCountryChange = (event) => {
+    const selectedCode = event.target.value;
+    setGekozenLandCode(selectedCode); // Store the selected code
+
+    // Find the corresponding full name from the landen array
+    const selectedLandObject = landen.find(land => land.code.toLowerCase() === selectedCode);
+    if (selectedLandObject) {
+      setGekozenLandNaam(selectedLandObject.naam); // Store the full name
+    } else {
+      setGekozenLandNaam(""); // Clear name if code not found (e.g., 'other' or error)
+    }
+  };
+  // --- END ADDED Handler ---
+
+
   // Combined Submit Handler
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -53,8 +70,6 @@ const AuthForm = () => {
         });
         const result = await response.json();
         if (response.ok) {
-          // Instead of client-side navigation, force a full page load to '/'
-          // This ensures the HomePageWrapper re-evaluates auth status with the new cookie.
           window.location.href = '/';
         } else {
           alert(`Login Error: ${result.message}`);
@@ -65,21 +80,21 @@ const AuthForm = () => {
       }
     } else {
       // --- Register Logic ---
-      // Use state variables directly instead of FormData
-      const browserLang = navigator.language || navigator.userLanguage; // Get browser language
+      const browserLang = navigator.language || navigator.userLanguage;
       const registerData = {
         naam: name,
         email,
         wachtwoord: password,
-        land: gekozenLand,
-        language: gekozenTaal, // Add chosen language
-        // Removed shop-related fields from registration data
-        browser_lang: browserLang.split('-')[0], // Send primary language code (e.g., 'en' from 'en-US')
+        land: gekozenLandCode, // <<< MODIFIED: Send the code
+        full_country_name: gekozenLandNaam, // <<< ADDED: Send the full name
+        language: gekozenTaal,
+        browser_lang: browserLang.split('-')[0],
         timestamp: new Date().toISOString(),
       };
 
-      if (!name || !email || !password || !gekozenLand || !gekozenTaal) { // Add language validation
-          alert("Please fill in all required fields (Name, Email, Password, Country, Language).");
+      // <<< MODIFIED: Include gekozenLandNaam in validation >>>
+      if (!name || !email || !password || !gekozenLandCode || !gekozenLandNaam || !gekozenTaal) {
+          alert("Please fill in all required fields (Name, Email, Password, Country, Language). Ensure country is selected.");
           return;
       }
 
@@ -93,14 +108,12 @@ const AuthForm = () => {
         .then((result) => {
           if (result.status === "success") {
             alert("Registration successful! You can now log in.");
-            // Switch to login mode after successful registration
             setIsLoginMode(true);
-            // Clear registration-specific fields (optional)
             setName("");
-            setPassword(""); // Clear password for login
-            setGekozenLand("");
-            setGekozenTaal(""); // Clear language on success
-            // Removed clearing of shop state
+            setPassword("");
+            setGekozenLandCode(""); // <<< MODIFIED: Clear code
+            setGekozenLandNaam(""); // <<< ADDED: Clear name
+            setGekozenTaal("");
           } else {
              alert(`Registration Error: ${result.message}`);
           }
@@ -114,13 +127,12 @@ const AuthForm = () => {
 
   const toggleMode = () => {
     setIsLoginMode(!isLoginMode);
-    // Clear fields when switching modes
     setEmail("");
     setPassword("");
     setName("");
-    setGekozenLand("");
-    setGekozenTaal(""); // Clear language on mode toggle
-    // Removed clearing of shop state
+    setGekozenLandCode(""); // <<< MODIFIED: Clear code
+    setGekozenLandNaam(""); // <<< ADDED: Clear name
+    setGekozenTaal("");
   };
 
   return (
@@ -143,7 +155,7 @@ const AuthForm = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  autoFocus={isLoginMode} // Autofocus email in login mode
+                  autoFocus={isLoginMode}
                 />
               </div>
 
@@ -154,12 +166,12 @@ const AuthForm = () => {
                 <input
                   type="password"
                   id="password"
-                  name={isLoginMode ? "password" : "wachtwoord"} // Name differs slightly
+                  name={isLoginMode ? "password" : "wachtwoord"}
                   className="form-control"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={isLoginMode ? undefined : 6} // Min length only for register
+                  minLength={isLoginMode ? undefined : 6}
                   pattern={isLoginMode ? undefined : ".{6,}"}
                   title={isLoginMode ? undefined : "At least 6 characters"}
                 />
@@ -180,7 +192,7 @@ const AuthForm = () => {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       required
-                      autoFocus // Autofocus name in register mode
+                      autoFocus
                     />
                   </div>
 
@@ -192,8 +204,8 @@ const AuthForm = () => {
                       id="land"
                       name="land"
                       className="form-select"
-                      value={gekozenLand}
-                      onChange={(e) => setGekozenLand(e.target.value)}
+                      value={gekozenLandCode} // <<< MODIFIED: Use code state
+                      onChange={handleCountryChange} // <<< MODIFIED: Use new handler
                       required
                     >
                       <option value="" disabled>🌐 Select a country...</option>
@@ -202,7 +214,8 @@ const AuthForm = () => {
                           {land.naam}
                         </option>
                       ))}
-                      <option value="other">🌎 Other</option>
+                      {/* Removed 'other' option for simplicity, re-add if needed */}
+                      {/* <option value="other">🌎 Other</option> */}
                     </select>
                   </div>
 
@@ -220,7 +233,6 @@ const AuthForm = () => {
                       required
                     >
                       <option value="" disabled>🌐 Select a language...</option>
-                      {/* Reuse language map from ProfilePage or define here */}
                       {Object.entries({
                         "en": "English", "nl": "Dutch", "es": "Spanish", "de": "German",
                         "fr": "French", "zh": "Chinese", "hi": "Hindi", "id": "Indonesian",
@@ -235,8 +247,6 @@ const AuthForm = () => {
                       ))}
                     </select>
                   </div>
-
-                  {/* Removed "Heb je een winkel?" dropdown and conditional shop details form */}
                 </>
               )}
 

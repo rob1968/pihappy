@@ -274,10 +274,7 @@ function Pilocations() {
           setShopSuggestions([]);
         } else {
           setShopSuggestions(data.suggestions || []);
-          // <<< MODIFIED: Clear name when suggestions load to force selection >>>
-          if (data.suggestions && data.suggestions.length > 0) {
-             setNewShopName("");
-          }
+          // Suggestions are now handled by datalist, no need to clear name here.
         }
       } else {
         console.error("Failed to fetch shop suggestions:", response.statusText);
@@ -339,34 +336,25 @@ function Pilocations() {
             {/* <<< MODIFIED: Conditionally render Input or Select for Company Name */}
             <div className="mb-3">
               <label htmlFor="newShopName" className="form-label">Company *</label>
-              {shopSuggestions.length > 0 ? (
-                <select
-                  id="newShopName"
-                  className="form-select"
-                  value={newShopName} // Controlled component
-                  onChange={(e) => setNewShopName(e.target.value)} // Update state on change
-                  required
-                  disabled={addShopLoading}
-                >
-                  <option value="" disabled>-- Select a company --</option>
-                  {shopSuggestions.map((suggestion, index) => (
-                    <option key={index} value={suggestion}>
-                      {suggestion}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  id="newShopName"
-                  className="form-control"
-                  placeholder="Company Name (Enter address first for suggestions)"
-                  value={newShopName}
-                  onChange={(e) => setNewShopName(e.target.value)}
-                  required
-                  disabled={addShopLoading}
-                />
-              )}
+              {/* Always render the text input, link to datalist for suggestions */}
+              <input
+                type="text"
+                id="newShopName"
+                className="form-control"
+                placeholder="Company Name (Enter address first for suggestions)"
+                value={newShopName}
+                onChange={(e) => setNewShopName(e.target.value)}
+                required
+                disabled={addShopLoading}
+                list="shop-name-suggestions" // Link input to datalist
+                autoComplete="off" // Prevent browser autocomplete interfering
+              />
+              {/* Datalist for suggestions */}
+              <datalist id="shop-name-suggestions">
+                {shopSuggestions.map((suggestion, index) => (
+                  <option key={index} value={suggestion} />
+                ))}
+              </datalist>
             </div>
 
             {/* REMOVED Separate Suggestion Dropdown */}

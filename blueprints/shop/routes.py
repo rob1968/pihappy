@@ -260,8 +260,25 @@ def add_shop():
         logging.warning("GOOGLE_PLACES_API_KEY environment variable not set. Skipping shop location verification.")
     # --- END LOCATION VERIFICATION BLOCK ---
 
+    # --- START DUPLICATE CHECK ---
     try:
-        # Insert the document
+        existing_shop = db.shops.find_one({
+            "name": shop_to_insert.get("name"),
+            "latitude": shop_to_insert.get("latitude"),
+            "longitude": shop_to_insert.get("longitude")
+        })
+        if existing_shop:
+            logging.warning(f"Duplicate shop detected: Name '{shop_to_insert.get('name')}' already exists at coordinates ({shop_to_insert.get('latitude')}, {shop_to_insert.get('longitude')}).")
+            return jsonify({"error": f"A shop named '{shop_to_insert.get('name')}' already exists at this exact location."}), 409 # 409 Conflict
+    except Exception as e:
+        # Log error during check but proceed cautiously or return server error
+        logging.error(f"Error during duplicate shop check: {e}", exc_info=True)
+        # Depending on policy, you might want to block insertion or just log and continue
+        return jsonify({"error": "Server error during duplicate check."}), 500
+    # --- END DUPLICATE CHECK ---
+ 
+    try:
+        # Insert the document if no duplicate found
         insert_result = db.shops.insert_one(shop_to_insert)
         inserted_id = insert_result.inserted_id
         logging.info(f"New shop inserted with _id: {inserted_id}")
