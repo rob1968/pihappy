@@ -224,8 +224,8 @@ function Pilocations() {
           setTimeout(() => {
               if (mapRef.current) { // Double-check ref still exists
                  mapRef.current.panTo(targetCoords);
-                 // mapRef.current.setZoom(15); // Optional zoom
-                 console.log("Map panTo called.");
+                 mapRef.current.setZoom(15); // Zoom in to the new location
+                 console.log("Map panTo and setZoom called.");
               } else {
                  console.warn("Map reference became null before panning could execute.");
               }
@@ -422,7 +422,7 @@ function Pilocations() {
             <GoogleMap
               mapContainerStyle={containerStyle}
               center={initialMapCenter} // Use state variable here
-              zoom={10}
+              zoom={6} // Zoom out to show country level
               onLoad={onLoad}
               onUnmount={onUnmount}
             >
