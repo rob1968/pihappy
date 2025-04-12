@@ -22,7 +22,7 @@ function Pilocations() {
   const [error, setError] = useState(null); // For map loading errors
   const [loading, setLoading] = useState(true); // For map data loading
   const [availableCategories, setAvailableCategories] = useState([]); // State for categories dropdown
-  const [initialMapCenter, setInitialMapCenter] = useState(null); // <<< Initialize center as null
+  const [mapCenter, setMapCenter] = useState(null); // <<< Use state for current center
 
   // State for the "Add Shop" form
   const [showAddShopForm, setShowAddShopForm] = useState(false);
@@ -36,6 +36,7 @@ function Pilocations() {
   const [addShopLoading, setAddShopLoading] = useState(false);
   const [refreshData, setRefreshData] = useState(0); // Counter to trigger data refresh
   const [shopSuggestions, setShopSuggestions] = useState([]); // State for name suggestions
+  const [panToCoords, setPanToCoords] = useState(null); // State to trigger panning { id, lat, lng }
   const [panToShopId, setPanToShopId] = useState(null); // <<< State to trigger panning to a new shop
  
   const mapRef = useRef(); // To store map instance
@@ -64,25 +65,25 @@ function Pilocations() {
       .then(profileData => {
         if (profileData && profileData.country_center_lat && profileData.country_center_lng) {
           console.log(`Setting initial map center based on user country: ${profileData.full_land_name || profileData.land}`);
-          setInitialMapCenter({
+          setMapCenter({ // <<< Set mapCenter
             lat: profileData.country_center_lat,
             lng: profileData.country_center_lng
           });
         } else {
           console.log("Using default map center.");
-          setInitialMapCenter(DEFAULT_MAP_CENTER);
+          setMapCenter(DEFAULT_MAP_CENTER); // <<< Set mapCenter
         }
       })
       .catch(err => {
         console.error("Error fetching profile:", err);
-        setInitialMapCenter(DEFAULT_MAP_CENTER);
+        setMapCenter(DEFAULT_MAP_CENTER); // <<< Set mapCenter
       });
   }, []); // Run only once on mount
 
   // Fetch shops data - runs on initial load and when refreshData changes
   useEffect(() => {
     // Only fetch shops once the initial center is determined (or defaulted)
-    if (!initialMapCenter) return;
+    if (!mapCenter) return; // <<< Wait for mapCenter to be set
 
     setLoading(true);
     fetch('/api/shops', { credentials: 'include' })
@@ -111,7 +112,7 @@ function Pilocations() {
       .finally(() => {
         setLoading(false);
       });
-  }, [refreshData, initialMapCenter]); // <<< Depend on initialMapCenter
+  }, [refreshData, mapCenter]); // <<< Depend on mapCenter (runs when center is first set, and on refreshData)
 
   // Filter shops when category or shops list changes
   useEffect(() => {
@@ -218,7 +219,7 @@ function Pilocations() {
       console.log("Shop added successfully:", newShop);
 
       // --- Trigger panning/zooming via state update ---
-      setPanToShopId(newShop._id); // Set the ID of the shop to pan to
+      setPanToCoords({ id: newShop._id, lat: submittedLat, lng: submittedLng }); // Set coords to pan to
       // The useEffect below will handle the actual map movement
       // --- End Trigger ---
 
@@ -293,26 +294,19 @@ function Pilocations() {
 
   // --- End Shop Name Suggestion Logic ---
  
-  // Effect to pan and zoom to a newly added shop
+  // Effect to pan and zoom to newly added shop coordinates
   useEffect(() => {
-    // Check if we have an ID to pan to, a map instance, and shops loaded
-    if (panToShopId && mapRef.current && winkels.length > 0) {
-      // Find the shop details in the current list
-      const shopToPanTo = winkels.find(shop => shop._id === panToShopId);
- 
-      // If found and has valid coordinates
-      if (shopToPanTo && typeof shopToPanTo.latitude === 'number' && typeof shopToPanTo.longitude === 'number') {
-        const targetCoords = { lat: shopToPanTo.latitude, lng: shopToPanTo.longitude };
-        console.log(`useEffect: Panning and zooming to shop ID ${panToShopId}`, targetCoords);
-        mapRef.current.panTo(targetCoords);
-        mapRef.current.setZoom(15);
-        setPanToShopId(null); // Reset the state variable to prevent re-panning on subsequent renders
-      } else {
-         // Log if the shop wasn't found (might happen briefly if winkels updates slightly after panToShopId)
-         console.log(`useEffect: Shop with ID ${panToShopId} not found in winkels list yet, or missing coords.`);
-      }
+    // Check if we have coordinates to pan to, a map instance, and the map center state is ready
+    if (panToCoords && mapRef.current && mapCenter) {
+      const targetCoords = { lat: panToCoords.lat, lng: panToCoords.lng };
+      console.log(`useEffect: Panning and zooming to new shop coords`, targetCoords);
+      mapRef.current.panTo(targetCoords);
+      mapRef.current.setZoom(15);
+      setMapCenter(targetCoords); // <<< Update the controlled center state
+      setPanToCoords(null); // Reset the state variable to prevent re-panning
     }
-  }, [panToShopId, winkels, mapRef]); // Dependencies: trigger ID, shop list, map instance
+    // Ensure mapRef and mapCenter are included in dependencies if used inside
+  }, [panToCoords, mapRef, mapCenter]); // Dependencies: trigger coords object, map instance, mapCenter state
 
 
   if (!MAP_API_KEY) {
@@ -320,7 +314,7 @@ function Pilocations() {
   }
 
   // Use initialMapCenter state for loading check too
-  if (loading || !initialMapCenter) { // <<< Wait for initial center
+  if (loading || !mapCenter) { // <<< Wait for mapCenter
     return <div className="pilocations-container"><p style={{ textAlign: 'center', marginTop: '20px' }}>Loading map data...</p></div>;
   }
 
@@ -429,7 +423,7 @@ function Pilocations() {
             </div>
             <GoogleMap
               mapContainerStyle={containerStyle}
-              center={initialMapCenter} // Use state variable here
+              center={mapCenter} // <<< Use controlled mapCenter state
               zoom={6} // Zoom out to show country level
               onLoad={onLoad}
               onUnmount={onUnmount}
