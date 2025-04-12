@@ -414,9 +414,6 @@ function Pilocations() {
                     {selectedWinkel.website && (
                       <p>Website: <a href={selectedWinkel.website} target="_blank" rel="noopener noreferrer">{selectedWinkel.website}</a></p>
                     )}
-                    {selectedWinkel.userId && (
-                      <p>Added by: <a href={`/profile/${selectedWinkel.userId}`} target="_blank" rel="noopener noreferrer">View Profile</a></p>
-                    )}
                     <a
                       href={`https://www.google.com/maps/dir/?api=1&destination=${selectedWinkel.latitude},${selectedWinkel.longitude}`}
                       target="_blank"
