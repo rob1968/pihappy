@@ -31,7 +31,7 @@ function Pilocations() {
   const [newShopLocation, setNewShopLocation] = useState("");
   const [newShopLatitude, setNewShopLatitude] = useState(null); // State for latitude
   const [newShopLongitude, setNewShopLongitude] = useState(null); // State for longitude
-  const [newShopType, setNewShopType] = useState("Shop"); // Default type
+  const [newShopType, setNewShopType] = useState(""); // <<< Changed default state for dropdown
   const [addShopError, setAddShopError] = useState(null);
   const [addShopLoading, setAddShopLoading] = useState(false);
   const [refreshData, setRefreshData] = useState(0); // Counter to trigger data refresh
@@ -198,7 +198,7 @@ function Pilocations() {
       location: newShopLocation,
       latitude: submittedLat, // Use stored coords
       longitude: submittedLng, // Use stored coords
-      type: newShopType,
+      type: newShopType, // Use the state variable for the dropdown
     };
 
     fetch('/api/shops', {
@@ -229,7 +229,7 @@ function Pilocations() {
       setNewShopLocation("");
       setNewShopLatitude(null);
       setNewShopLongitude(null);
-      setNewShopType("Shop");
+      setNewShopType(""); // Reset dropdown to default
       setShopSuggestions([]);
       setShowAddShopForm(false);
       setRefreshData(prev => prev + 1); // Trigger data refresh AFTER panning (or doesn't matter much)
@@ -340,15 +340,32 @@ function Pilocations() {
           <h2>Add Your Shop</h2>
           <form onSubmit={handleAddShopSubmit}>
 
-            {/* <<< MODIFIED: Conditionally render Input or Select for Company Name */}
+            {/* Location Autocomplete (Moved to top) */}
+            <div className="mb-3">
+              <label htmlFor="newShopLocation" className="form-label">Location *</label>
+              <Autocomplete onLoad={onAutocompleteLoad} onPlaceChanged={onPlaceChanged}>
+                <input
+                  type="text"
+                  id="newShopLocation"
+                  className="form-control"
+                  placeholder="Enter shop address"
+                  value={newShopLocation}
+                  onChange={(e) => setNewShopLocation(e.target.value)}
+                  required
+                  disabled={addShopLoading}
+                  autoFocus // <<< Added autoFocus
+                />
+              </Autocomplete>
+            </div>
+
+            {/* Company Name Input + Custom Suggestions */}
             <div className="mb-3">
               <label htmlFor="newShopName" className="form-label">Company *</label>
-              {/* Always render the text input, link to datalist for suggestions */}
               <input
                 type="text"
                 id="newShopName"
                 className="form-control"
-                placeholder="Company Name (Enter address first for suggestions)"
+                placeholder="Company Name (Suggestions appear after address)"
                 value={newShopName}
                 onChange={(e) => setNewShopName(e.target.value)}
                 required
@@ -375,8 +392,6 @@ function Pilocations() {
               )}
             </div>
 
-            {/* REMOVED Separate Suggestion Dropdown */}
-
             {/* Category Dropdown */}
             <div className="mb-3">
                <label htmlFor="newShopCategory" className="form-label">Category *</label>
@@ -390,27 +405,22 @@ function Pilocations() {
                </select>
             </div>
 
-            {/* Location Autocomplete */}
-            <div className="mb-3">
-              <label htmlFor="newShopLocation" className="form-label">Location *</label>
-              <Autocomplete onLoad={onAutocompleteLoad} onPlaceChanged={onPlaceChanged}>
-                <input
-                  type="text"
-                  id="newShopLocation"
-                  className="form-control"
-                  placeholder="Enter shop address"
-                  value={newShopLocation}
-                  onChange={(e) => setNewShopLocation(e.target.value)}
-                  required
-                  disabled={addShopLoading}
-                />
-              </Autocomplete>
-            </div>
-
-            {/* Type Input */}
+            {/* Sales Channel Dropdown (Replaced Type Input) */}
              <div className="mb-3">
-               <label htmlFor="newShopType" className="form-label">Type</label>
-               <input type="text" id="newShopType" className="form-control" value={newShopType} onChange={(e) => setNewShopType(e.target.value)} placeholder="e.g., Shop, Service" disabled={addShopLoading}/>
+               <label htmlFor="newShopSalesChannel" className="form-label">Sales channel</label>
+               <select
+                 id="newShopSalesChannel"
+                 className="form-select"
+                 value={newShopType} // Still uses newShopType state
+                 onChange={(e) => setNewShopType(e.target.value)}
+                 disabled={addShopLoading}
+                 required // Make selection required if needed
+               >
+                 <option value="" disabled>-- Select --</option>
+                 <option value="Offline">Offline</option>
+                 <option value="Online">Online</option>
+                 <option value="Offline & Online">Offline & Online</option>
+               </select>
              </div>
 
             {addShopError && <p className="error text-danger">Error: {addShopError}</p>}
