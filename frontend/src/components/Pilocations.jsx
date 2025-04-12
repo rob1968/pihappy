@@ -17,6 +17,7 @@ function Pilocations() {
   const [winkels, setWinkels] = useState([]);
   const [filteredWinkels, setFilteredWinkels] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedSalesChannel, setSelectedSalesChannel] = useState('all'); // <<< State for sales channel filter
   const [selectedWinkel, setSelectedWinkel] = useState(null); // Keep this for InfoWindow
   const [map, setMap] = useState(null);
   const [error, setError] = useState(null); // For map loading errors
@@ -114,15 +115,23 @@ function Pilocations() {
       });
   }, [refreshData, mapCenter]); // <<< Depend on mapCenter (runs when center is first set, and on refreshData)
 
-  // Filter shops when category or shops list changes
+  // Filter shops when category, sales channel, or shops list changes
   useEffect(() => {
-    if (selectedCategory === 'all') {
-      setFilteredWinkels(winkels);
-    } else {
-      setFilteredWinkels(winkels.filter(shop => shop.category === selectedCategory));
+    let currentlyFiltered = winkels;
+
+    // Filter by category
+    if (selectedCategory !== 'all') {
+      currentlyFiltered = currentlyFiltered.filter(shop => shop.category === selectedCategory);
     }
-    setSelectedWinkel(null);
-  }, [selectedCategory, winkels]);
+
+    // Filter by sales channel (type)
+    if (selectedSalesChannel !== 'all') {
+      currentlyFiltered = currentlyFiltered.filter(shop => shop.type === selectedSalesChannel);
+    }
+
+    setFilteredWinkels(currentlyFiltered);
+    setSelectedWinkel(null); // Reset selected marker on filter change
+  }, [selectedCategory, selectedSalesChannel, winkels]); // <<< Add selectedSalesChannel dependency
 
   // Fetch categories for the dropdown
   useEffect(() => {
@@ -331,113 +340,12 @@ function Pilocations() {
     <div className="pilocations-container">
       <h1>Pi Coin Accepted Locations</h1>
 
-      <button onClick={() => setShowAddShopForm(!showAddShopForm)} className="btn btn-primary mb-3">
-        {showAddShopForm ? 'Cancel Adding Shop' : 'Add New Shop'}
-      </button>
-
-      {showAddShopForm && (
-        <div className="add-shop-form card mb-4 p-3">
-          <h2>Add Your Shop</h2>
-          <form onSubmit={handleAddShopSubmit}>
-
-            {/* Location Autocomplete (Moved to top) */}
-            <div className="mb-3">
-              <label htmlFor="newShopLocation" className="form-label">Location *</label>
-              <Autocomplete onLoad={onAutocompleteLoad} onPlaceChanged={onPlaceChanged}>
-                <input
-                  type="text"
-                  id="newShopLocation"
-                  className="form-control"
-                  placeholder="Enter shop address"
-                  value={newShopLocation}
-                  onChange={(e) => setNewShopLocation(e.target.value)}
-                  required
-                  disabled={addShopLoading}
-                  autoFocus // <<< Added autoFocus
-                />
-              </Autocomplete>
-            </div>
-
-            {/* Company Name Input + Custom Suggestions */}
-            <div className="mb-3">
-              <label htmlFor="newShopName" className="form-label">Company *</label>
-              <input
-                type="text"
-                id="newShopName"
-                className="form-control"
-                placeholder="Company Name (Suggestions appear after address)"
-                value={newShopName}
-                onChange={(e) => setNewShopName(e.target.value)}
-                required
-                disabled={addShopLoading}
-                autoComplete="off" // Prevent browser autocomplete interfering
-              />
-              {/* Custom Suggestions Dropdown */}
-              {shopSuggestions.length > 0 && (
-                <div className="list-group position-absolute" style={{ zIndex: 1000, width: 'calc(100% - 1rem)' }}> {/* Basic styling for dropdown */}
-                  {shopSuggestions.map((suggestion, index) => (
-                    <button
-                      type="button" // Important: prevent form submission
-                      key={index}
-                      className="list-group-item list-group-item-action"
-                      onClick={() => {
-                        setNewShopName(suggestion); // Set input value
-                        setShopSuggestions([]); // Clear suggestions to hide dropdown
-                      }}
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Category Dropdown */}
-            <div className="mb-3">
-               <label htmlFor="newShopCategory" className="form-label">Category *</label>
-               <select id="newShopCategory" className="form-select" value={newShopCategory} onChange={(e) => setNewShopCategory(e.target.value)} required disabled={addShopLoading}>
-                 <option value="" disabled>-- Select a Category --</option>
-                 {availableCategories.map(category => (
-                   <option key={category} value={category}>
-                     {category.charAt(0).toUpperCase() + category.slice(1)}
-                   </option>
-                 ))}
-               </select>
-            </div>
-
-            {/* Sales Channel Dropdown (Replaced Type Input) */}
-             <div className="mb-3">
-               <label htmlFor="newShopSalesChannel" className="form-label">Sales channel</label>
-               <select
-                 id="newShopSalesChannel"
-                 className="form-select"
-                 value={newShopType} // Still uses newShopType state
-                 onChange={(e) => setNewShopType(e.target.value)}
-                 disabled={addShopLoading}
-                 required // Make selection required if needed
-               >
-                 <option value="" disabled>-- Select --</option>
-                 <option value="Offline">Offline</option>
-                 <option value="Online">Online</option>
-                 <option value="Offline & Online">Offline & Online</option>
-               </select>
-             </div>
-
-            {addShopError && <p className="error text-danger">Error: {addShopError}</p>}
-
-            <button type="submit" className="btn btn-success" disabled={addShopLoading}>
-              {addShopLoading ? 'Adding...' : 'Submit Shop'}
-            </button>
-          </form>
-        </div>
-      )}
-
       {/* Map Container */}
       <div className="map-container">
         <LoadScript googleMapsApiKey={MAP_API_KEY} libraries={LIBRARIES}>
           <>
             <div className="controls">
-              <label htmlFor="category-filter">Filter by category:</label>
+              <label htmlFor="category-filter">Category:</label>
               <select id="category-filter" className="form-select form-select-sm" value={selectedCategory} onChange={handleCategoryChange}>
                 <option value="all">All</option>
                 {availableCategories.map(category => (
@@ -445,6 +353,20 @@ function Pilocations() {
                     {category.charAt(0).toUpperCase() + category.slice(1)}
                   </option>
                 ))}
+              </select>
+
+              {/* <<< Added Sales Channel Filter >>> */}
+              <label htmlFor="sales-channel-filter" style={{ marginLeft: '10px' }}>Sales Channel:</label>
+              <select
+                id="sales-channel-filter"
+                className="form-select form-select-sm"
+                value={selectedSalesChannel}
+                onChange={(e) => setSelectedSalesChannel(e.target.value)}
+              >
+                <option value="all">All</option>
+                <option value="Offline">Offline</option>
+                <option value="Online">Online</option>
+                <option value="Offline & Online">Offline & Online</option>
               </select>
             </div>
             <GoogleMap
@@ -500,6 +422,111 @@ function Pilocations() {
           </>
         </LoadScript>
       </div>
+
+      {/* Add Shop Button and Form (Moved below map) */}
+      <div style={{ marginTop: '20px' }}> {/* Add some spacing */}
+        <button onClick={() => setShowAddShopForm(!showAddShopForm)} className="btn btn-primary mb-3">
+          {showAddShopForm ? 'Cancel Adding Pi Location' : 'Add Pay with Pi Location'}
+        </button>
+
+        {showAddShopForm && (
+          <div className="add-shop-form card mb-4 p-3">
+            <h2></h2>
+            <form onSubmit={handleAddShopSubmit}>
+
+              {/* Location Autocomplete (Moved to top) */}
+              <div className="mb-3">
+                <label htmlFor="newShopLocation" className="form-label">Location *</label>
+                <Autocomplete onLoad={onAutocompleteLoad} onPlaceChanged={onPlaceChanged}>
+                  <input
+                    type="text"
+                    id="newShopLocation"
+                    className="form-control"
+                    placeholder="Enter Location"
+                    value={newShopLocation}
+                    onChange={(e) => setNewShopLocation(e.target.value)}
+                    required
+                    disabled={addShopLoading}
+                    autoFocus // <<< Added autoFocus
+                  />
+                </Autocomplete>
+              </div>
+
+              {/* Company Name Input + Custom Suggestions */}
+              <div className="mb-3">
+                <label htmlFor="newShopName" className="form-label">Company *</label>
+                <input
+                  type="text"
+                  id="newShopName"
+                  className="form-control"
+                  placeholder="Company Name (Suggestions appear after address)"
+                  value={newShopName}
+                  onChange={(e) => setNewShopName(e.target.value)}
+                  required
+                  disabled={addShopLoading}
+                  autoComplete="off" // Prevent browser autocomplete interfering
+                />
+                {/* Custom Suggestions Dropdown */}
+                {shopSuggestions.length > 0 && (
+                  <div className="list-group position-absolute" style={{ zIndex: 1000, width: 'calc(100% - 1rem)' }}> {/* Basic styling for dropdown */}
+                    {shopSuggestions.map((suggestion, index) => (
+                      <button
+                        type="button" // Important: prevent form submission
+                        key={index}
+                        className="list-group-item list-group-item-action"
+                        onClick={() => {
+                          setNewShopName(suggestion); // Set input value
+                          setShopSuggestions([]); // Clear suggestions to hide dropdown
+                        }}
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Category Dropdown */}
+              <div className="mb-3">
+                 <label htmlFor="newShopCategory" className="form-label">Category *</label>
+                 <select id="newShopCategory" className="form-select" value={newShopCategory} onChange={(e) => setNewShopCategory(e.target.value)} required disabled={addShopLoading}>
+                   <option value="" disabled>-- Select a Category --</option>
+                   {availableCategories.map(category => (
+                     <option key={category} value={category}>
+                       {category.charAt(0).toUpperCase() + category.slice(1)}
+                     </option>
+                   ))}
+                 </select>
+              </div>
+
+              {/* Sales Channel Dropdown (Replaced Type Input) */}
+               <div className="mb-3">
+                 <label htmlFor="newShopSalesChannel" className="form-label">Sales channel</label>
+                 <select
+                   id="newShopSalesChannel"
+                   className="form-select"
+                   value={newShopType} // Still uses newShopType state
+                   onChange={(e) => setNewShopType(e.target.value)}
+                   disabled={addShopLoading}
+                   required // Make selection required if needed
+                 >
+                   <option value="" disabled>-- Select --</option>
+                   <option value="Offline">Offline</option>
+                   <option value="Online">Online</option>
+                   <option value="Offline & Online">Offline & Online</option>
+                 </select>
+               </div>
+
+              {addShopError && <p className="error text-danger">Error: {addShopError}</p>}
+
+              <button type="submit" className="btn btn-success" disabled={addShopLoading}>
+                {addShopLoading ? 'Adding...' : 'Submit Location'}
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
