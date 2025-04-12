@@ -7,15 +7,22 @@ function ProfilePage() {
   const { userId } = useParams(); // Get userId from URL parameter
   const navigate = useNavigate(); // Get navigate function
   const [profile, setProfile] = useState(null);
-  // Removed shops state
+  const [userShops, setUserShops] = useState([]); // <<< State for user's shops
   const [loadingProfile, setLoadingProfile] = useState(true);
-  // Removed loadingShops state
+  const [loadingShops, setLoadingShops] = useState(false); // <<< State for loading shops
   const [error, setError] = useState(null); // General page loading errors
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [editFormData, setEditFormData] = useState({ naam: '', land: '', full_country_name: '', language: '' });
   const [editError, setEditError] = useState(null); // Profile editing specific errors
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [countries, setCountries] = useState([]); // State for country list
+
+  // <<< State for editing shops >>>
+  const [editingShopId, setEditingShopId] = useState(null); // ID of the shop being edited
+  const [editShopFormData, setEditShopFormData] = useState({ name: '', category: '', type: '' });
+  const [isSavingShop, setIsSavingShop] = useState(false);
+  const [editShopError, setEditShopError] = useState(null);
+  const [availableCategories, setAvailableCategories] = useState([]); // For category dropdown in edit
 
   // <<< Function to fetch profile data >>>
   const fetchProfile = () => {
@@ -60,11 +67,36 @@ function ProfilePage() {
       });
   };
 
+  // <<< Function to fetch user's shops >>>
+  const fetchUserShops = () => {
+    setLoadingShops(true);
+    fetch('/api/profile/shops', { credentials: 'include' })
+      .then(response => {
+        if (!response.ok) {
+          // Don't throw critical error if shops fail, profile might still load
+          console.error("Failed to fetch user shops:", response.statusText);
+          return []; // Return empty array on error
+        }
+        return response.json();
+      })
+      .then(data => {
+        setUserShops(data || []); // Set shops or empty array
+      })
+      .catch(err => {
+        console.error("Error fetching user shops:", err);
+        setUserShops([]); // Set empty array on error
+      })
+      .finally(() => {
+        setLoadingShops(false);
+      });
+  };
+
   // Fetch profile data on initial load or when userId changes
   useEffect(() => {
     fetchProfile();
-    // Removed eslint-disable-next-line comment as rule definition seems missing
-  }, [userId]); // Depend only on userId
+    fetchUserShops(); // <<< Fetch shops on load too
+    // Dependency array is correct as fetchProfile/fetchUserShops don't change
+  }, [userId]); // Depend only on userId (fetchProfile depends on it)
 
   // Fetch countries for the dropdown
   useEffect(() => {
@@ -87,6 +119,24 @@ function ProfilePage() {
         setCountries([]);
       });
   }, []); // Fetch countries only once on mount
+
+  // <<< Fetch available categories for shop editing >>>
+  useEffect(() => {
+    fetch('/api/categories', { credentials: 'include' })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        setAvailableCategories(data || []);
+      })
+      .catch(err => {
+        console.error("Error fetching categories:", err);
+        // Optionally set an error state for categories
+      });
+  }, []); // Fetch categories once on mount
 
   if (loadingProfile) {
     return <div className="profile-container"><p>Loading profile...</p></div>;
@@ -200,6 +250,69 @@ function ProfilePage() {
       console.error('Logout error:', error);
       alert('An error occurred during logout. Please try again.');
     }
+  };
+
+  // --- Edit Shop Handlers ---
+  const handleShopEditClick = (shop) => {
+    setEditingShopId(shop._id);
+    setEditShopFormData({
+      name: shop.name || '',
+      category: shop.category || '',
+      type: shop.type || '' // Use 'type' for sales channel
+    });
+    setEditShopError(null);
+  };
+
+  const handleShopCancelClick = () => {
+    setEditingShopId(null);
+    setEditShopError(null);
+  };
+
+  const handleShopInputChange = (event) => {
+    const { name, value } = event.target;
+    setEditShopFormData(prevData => ({
+      ...prevData,
+      [name]: value
+    }));
+  };
+
+  const handleShopSaveClick = (shopId) => {
+    setIsSavingShop(true);
+    setEditShopError(null);
+
+    // Only send fields that are being edited
+    const dataToSave = {
+        name: editShopFormData.name,
+        category: editShopFormData.category,
+        type: editShopFormData.type, // Sales channel
+    };
+
+    fetch(`/api/shops/${shopId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(dataToSave)
+    })
+    .then(response => {
+      if (!response.ok) {
+        return response.json().then(errData => {
+           throw new Error(errData.error || `HTTP error! status: ${response.status}`);
+        });
+      }
+      return response.json();
+    })
+    .then(data => {
+      setEditingShopId(null); // Exit edit mode
+      fetchUserShops(); // Re-fetch shops to show updated data
+      console.log("Shop updated successfully", data);
+    })
+    .catch(err => {
+      console.error("Error updating shop:", err);
+      setEditShopError(err.message || 'Failed to save shop changes.');
+    })
+    .finally(() => {
+      setIsSavingShop(false);
+    });
   };
 
 
@@ -320,8 +433,90 @@ function ProfilePage() {
         </div>
       </div>
 
- {/* Removed the entire "Your Shops" section */}
- </div>
+      {/* <<< Section for User's Shops >>> */}
+      <div className="card mt-4">
+        <div className="card-header">
+          Your Locations
+        </div>
+        <div className="card-body">
+          {loadingShops ? (
+            <p>Loading your locations...</p>
+          ) : userShops.length > 0 ? (
+            <ul className="list-group list-group-flush">
+              {userShops.map(shop => (
+                <li key={shop._id} className="list-group-item">
+                  {editingShopId === shop._id ? (
+                    // <<< Edit Form >>>
+                    <div>
+                      <div className="mb-2">
+                        <label htmlFor={`editShopName-${shop._id}`} className="form-label form-label-sm">Name:</label>
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          id={`editShopName-${shop._id}`}
+                          name="name"
+                          value={editShopFormData.name}
+                          onChange={handleShopInputChange}
+                        />
+                      </div>
+                      <div className="mb-2">
+                         <label htmlFor={`editShopCategory-${shop._id}`} className="form-label form-label-sm">Category:</label>
+                         <select
+                           className="form-select form-select-sm"
+                           id={`editShopCategory-${shop._id}`}
+                           name="category"
+                           value={editShopFormData.category}
+                           onChange={handleShopInputChange}
+                         >
+                           <option value="" disabled>Select Category...</option>
+                           {availableCategories.map(cat => (
+                             <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
+                           ))}
+                         </select>
+                      </div>
+                      <div className="mb-2">
+                         <label htmlFor={`editShopType-${shop._id}`} className="form-label form-label-sm">Sales Channel:</label>
+                         <select
+                           className="form-select form-select-sm"
+                           id={`editShopType-${shop._id}`}
+                           name="type"
+                           value={editShopFormData.type}
+                           onChange={handleShopInputChange}
+                         >
+                           <option value="" disabled>Select Channel...</option>
+                           <option value="Offline">Offline</option>
+                           <option value="Online">Online</option>
+                           <option value="Offline & Online">Offline & Online</option>
+                         </select>
+                      </div>
+                      <div className="mt-2">
+                        <button className="btn btn-sm btn-success me-2" onClick={() => handleShopSaveClick(shop._id)} disabled={isSavingShop}>
+                          {isSavingShop ? 'Saving...' : 'Save'}
+                        </button>
+                        <button className="btn btn-sm btn-secondary" onClick={handleShopCancelClick} disabled={isSavingShop}>Cancel</button>
+                      </div>
+                      {editShopError && editingShopId === shop._id && <p className="error text-danger small mt-1">{editShopError}</p>}
+                    </div>
+                  ) : (
+                    // <<< Display Mode >>>
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div>
+                        <strong>{shop.name}</strong><br />
+                        <small className="text-muted">{shop.location}</small><br/>
+                        <small>Category: {shop.category || 'N/A'} | Sales Channel: {shop.type || 'N/A'}</small>
+                      </div>
+                      <button className="btn btn-sm btn-outline-primary" onClick={() => handleShopEditClick(shop)}>Edit</button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>You haven't added any locations yet.</p>
+          )}
+        </div>
+      </div>
+    </div>
     </>
   );
 }
