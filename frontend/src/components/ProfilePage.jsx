@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom'; // Import useParams and useNavigate
+import MainMenu from './MainMenu'; // <<< Import the MainMenu component
 import './ProfilePage.css'; // We'll create this CSS file later
 
 function ProfilePage() {
@@ -217,6 +218,8 @@ function ProfilePage() {
   const displayLanguageName = languageCodeToName[profile?.language] || profile?.language || 'N/A';
 
   return (
+    <> {/* Use Fragment to wrap Menu and container */}
+      <MainMenu />
     <div className="profile-container container mt-4">
       <h1>Your Profile</h1>
       {error && <p className="error text-danger">Error loading profile data: {error}</p>}
@@ -319,6 +322,7 @@ function ProfilePage() {
 
  {/* Removed the entire "Your Shops" section */}
  </div>
+    </>
   );
 }
 

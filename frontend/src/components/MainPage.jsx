@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom'; // Import Link for navigation
+// Removed Link import as it's now in MainMenu
 import './MainPage.css'; // Import the CSS
 import MoodVotingForm from './MoodVotingForm'; // Import the MoodVotingForm component
 import AiFeedbackDisplay from './AiFeedbackDisplay'; // Import the AiFeedbackDisplay component
 import ChatInterface from './ChatInterface'; // Import the ChatInterface component
+import MainMenu from './MainMenu'; // <<< Import the MainMenu component
 
 const MainPage = () => {
     // State for various parts of the page
@@ -244,14 +245,8 @@ const MainPage = () => {
                 </div>
             )}
 
-            {/* Navigation Menu */}
-            <nav style={{ marginBottom: '20px', textAlign: 'center', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
-                <Link to="/" style={{ marginRight: '15px', textDecoration: 'none', color: '#5e459c', fontWeight: '500' }}>Home / Mood</Link>
-                <Link to="/community" style={{ marginRight: '15px', textDecoration: 'none', color: '#5e459c', fontWeight: '500' }}>Community</Link>
-                <Link to="/pilocations" style={{ marginRight: '15px', textDecoration: 'none', color: '#5e459c', fontWeight: '500' }}>Map</Link>
-                <Link to="/profile" style={{ marginRight: '15px', textDecoration: 'none', color: '#5e459c', fontWeight: '500' }}>Profile</Link>
-                {/* Removed logout link */}
-            </nav>
+            {/* Render the MainMenu component */}
+            <MainMenu />
 
             <h1>PiHappy - Mood & Chat</h1> {/* Updated heading */}
 

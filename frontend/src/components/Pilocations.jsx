@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 // Import Autocomplete along with other components
 import { GoogleMap, LoadScript, Marker, InfoWindow, Autocomplete } from '@react-google-maps/api';
+import MainMenu from './MainMenu'; // <<< Import the MainMenu component
 import './Pilocations.css'; // Import the CSS
 
 const MAP_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
@@ -338,6 +339,8 @@ function Pilocations() {
 
   return (
     <div className="pilocations-container">
+      {/* Render the MainMenu component */}
+      <MainMenu />
       <h1>Pi Coin Accepted Locations</h1>
 
       {/* Map Container */}

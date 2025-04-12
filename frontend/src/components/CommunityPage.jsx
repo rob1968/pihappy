@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom'; // Import Link for navigation
+// Removed Link import as it's now in MainMenu
+import MainMenu from './MainMenu'; // <<< Import the MainMenu component
 // import './CommunityPage.css'; // Optional: Create and import CSS if needed
 
 const CommunityPage = () => {
@@ -207,12 +208,8 @@ const CommunityPage = () => {
 
     return (
         <div className="container"> {/* Use same container class or create new CSS */}
-            {/* Navigation Menu */}
-            <nav style={{ marginBottom: '20px', textAlign: 'center', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
-                <Link to="/" style={{ marginRight: '15px', textDecoration: 'none', color: '#5e459c', fontWeight: '500' }}>Home / Mood</Link>
-                <Link to="/community" style={{ textDecoration: 'none', color: '#5e459c', fontWeight: 'bold' }}>Community</Link> {/* Bold current page */}
-                {/* Add other links as needed */}
-            </nav>
+            {/* Render the MainMenu component */}
+            <MainMenu />
 
             <h1>Community Page</h1>
 
