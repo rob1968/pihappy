@@ -44,6 +44,8 @@ function Pilocations() {
   const [shopSuggestions, setShopSuggestions] = useState([]); // State for name suggestions
   const [panToCoords, setPanToCoords] = useState(null); // State to trigger panning { id, lat, lng }
   const [panToShopId, setPanToShopId] = useState(null); // <<< State to trigger panning to a new shop
+  const [paymentAmount, setPaymentAmount] = useState("1.0"); // Example state for amount
+  const [paymentStatus, setPaymentStatus] = useState(''); // To show feedback during payment
 
   const mapRef = useRef(); // To store map instance
   const autocompleteRef = useRef(null); // Ref for Autocomplete input
@@ -332,6 +334,141 @@ function Pilocations() {
   }, [panToCoords, mapRef, mapCenter]); // Dependencies: trigger coords object, map instance, mapCenter state
 
 
+  // --- Pi Payment Handling ---
+  const handlePayWithPi = async (shop) => {
+      setPaymentStatus(`Initiating payment for ${shop.name}...`);
+      console.log(`Initiating payment for shop ${shop._id} with amount ${paymentAmount}`);
+
+      try {
+          // 1. Call backend to create payment details
+          const createResponse = await fetch('/api/payments/create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  itemId: shop._id, // Use shop ID as item ID for this example
+                  amount: paymentAmount // Get amount from state
+              }),
+              credentials: 'include'
+          });
+
+          if (!createResponse.ok) {
+              const errorData = await createResponse.json().catch(() => ({}));
+              throw new Error(errorData.error || `Failed to create payment details: ${createResponse.statusText}`);
+          }
+
+          const paymentData = await createResponse.json();
+          console.log("Received payment data from backend:", paymentData);
+
+          // 2. Define Pi SDK Callbacks
+          const callbacks = {
+              onReadyForServerApproval: async (paymentId) => {
+                  console.log("onReadyForServerApproval", paymentId);
+                  setPaymentStatus(`Approving payment ${paymentId} on server...`);
+                  try {
+                      const approveResponse = await fetch(`/api/payments/approve/${paymentId}`, {
+                          method: 'POST',
+                          credentials: 'include' // Send cookies if needed for session auth
+                      });
+                      const approveData = await approveResponse.json();
+                      if (!approveResponse.ok) {
+                          throw new Error(approveData.error || `Server approval failed: ${approveResponse.statusText}`);
+                      }
+                      console.log("Server approval successful:", approveData);
+                      setPaymentStatus(`Payment ${paymentId} approved by server.`);
+                      // Pi SDK proceeds automatically after this callback returns successfully
+                  } catch (err) {
+                      console.error("Error calling /approve endpoint:", err);
+                      const errorMsg = `Server approval failed: ${err.message}`;
+                      setPaymentStatus(errorMsg);
+                      alert(errorMsg); // Notify user
+                      // Note: Pi SDK might not provide a way to explicitly cancel here if server fails.
+                      // Consider if you need to throw the error to potentially stop the Pi flow if possible.
+                  }
+              },
+              onReadyForServerCompletion: async (paymentId, txid) => {
+                  console.log("onReadyForServerCompletion", paymentId, txid);
+                  setPaymentStatus(`Completing payment ${paymentId} on server (TxID: ${txid})...`);
+                  try {
+                      const completeResponse = await fetch(`/api/payments/complete/${paymentId}`, {
+                          method: 'POST',
+                          headers: {'Content-Type': 'application/json'},
+                          body: JSON.stringify({ txid }),
+                          credentials: 'include' // Send cookies if needed for session auth
+                      });
+                      const completeData = await completeResponse.json();
+                       if (!completeResponse.ok) {
+                          throw new Error(completeData.error || `Server completion failed: ${completeResponse.statusText}`);
+                      }
+                      console.log("Server completion successful:", completeData);
+                      const successMsg = `Payment ${paymentId} completed successfully! TxID: ${txid}`;
+                      setPaymentStatus(successMsg);
+                      alert(successMsg); // Notify user of final success
+                      // TODO: Maybe refresh user balance or order status here by triggering a state update or refetch
+                  } catch (err) {
+                      console.error("Error calling /complete endpoint:", err);
+                      const errorMsg = `Server completion failed: ${err.message}. Please contact support if payment was deducted.`;
+                      setPaymentStatus(errorMsg);
+                      alert(errorMsg); // Notify user
+                      // TODO: Implement reconciliation logic if completion fails server-side
+                  }
+              },
+              onCancel: (paymentId) => {
+                  console.log("onCancel", paymentId);
+                  setPaymentStatus(`Payment ${paymentId} cancelled.`);
+                  alert(`Payment cancelled by user (Payment ID: ${paymentId})`);
+              },
+              onError: (error, payment) => {
+                  console.error("onError", error, payment);
+                  setPaymentStatus(`Payment error: ${error.message || 'Unknown error'}`);
+                  alert(`Pi SDK Error during payment: ${error.message || 'Unknown error'}`);
+              },
+          };
+
+          // 3. Call Pi.createPayment
+          setPaymentStatus('Waiting for Pi Network confirmation...');
+          // --- Call Pi SDK ---
+          // Store the orderId before calling createPayment
+          const orderId = paymentData.metadata.orderId;
+          const payment = await window.Pi.createPayment(paymentData, callbacks);
+          // --- Pi SDK call finished (or Pi App took over) ---
+          console.log("Pi.createPayment call finished/returned:", payment);
+
+          // --- Associate Pi Payment ID with Order ID ---
+          // Check if we have the Pi paymentId from the result and the orderId
+          if (payment && payment.identifier && orderId) {
+               console.log(`Associating order ${orderId} with Pi payment ${payment.identifier}`);
+               try {
+                   const assocResponse = await fetch(`/api/payments/associate/${orderId}`, {
+                       method: 'POST',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify({ paymentId: payment.identifier }),
+                       credentials: 'include'
+                   });
+                   if (!assocResponse.ok) {
+                       const assocError = await assocResponse.json().catch(() => ({}));
+                       console.error(`Failed to associate payment IDs: ${assocError.error || assocResponse.statusText}`);
+                       setPaymentStatus(`Payment initiated, but association failed (Order: ${orderId}, Pi ID: ${payment.identifier})`);
+                   } else {
+                       console.log(`Successfully associated order ${orderId} with Pi payment ${payment.identifier}`);
+                   }
+               } catch (assocErr) {
+                    console.error("Network error during payment ID association:", assocErr);
+                    setPaymentStatus(`Payment initiated, network error during association (Order: ${orderId}, Pi ID: ${payment.identifier})`);
+               }
+          } else {
+               console.warn(`Pi payment ID or Order ID not available after createPayment. Association skipped. Payment: ${JSON.stringify(payment)}, OrderID: ${orderId}`);
+          }
+          // Note: Status might already be updated by callbacks by this point
+
+      } catch (error) {
+          console.error("Error in handlePayWithPi:", error);
+          setPaymentStatus(`Error: ${error.message}`);
+          alert(`Error preparing payment: ${error.message}`); // Keep alert for preparation errors
+      }
+  };
+  // --- End Pi Payment Handling ---
+
+
   if (!MAP_API_KEY) {
     return <div className="pilocations-container error">{t('pilocations.errorApiKeyMissing')}</div>;
   }
@@ -427,6 +564,30 @@ function Pilocations() {
                     >
                       {t('pilocations.planRouteLink')}
                     </a>
+                    {/* --- Pi Payment Section (Conditional) --- */}
+                    {window.Pi && ( // Only render if Pi SDK is loaded
+                      <div style={{ marginTop: '10px', borderTop: '1px solid #eee', paddingTop: '10px' }}>
+                          <label htmlFor={`pay-amount-${selectedWinkel._id}`} style={{ marginRight: '5px' }}>Amount (π):</label>
+                          <input
+                              type="number"
+                              id={`pay-amount-${selectedWinkel._id}`}
+                              value={paymentAmount}
+                              onChange={(e) => setPaymentAmount(e.target.value)}
+                              min="0.0000001" // Minimum Pi amount
+                              step="0.0000001" // Step for Pi decimals
+                              style={{ width: '80px', marginRight: '10px' }}
+                          />
+                          <button
+                              onClick={() => handlePayWithPi(selectedWinkel)}
+                              className="btn btn-sm btn-success"
+                              disabled={!paymentAmount || parseFloat(paymentAmount) <= 0}
+                          >
+                              {t('pilocations.payButton', { amount: paymentAmount })}
+                          </button>
+                          {paymentStatus && <p style={{ fontSize: '0.8em', marginTop: '5px', color: 'blue' }}>{paymentStatus}</p>}
+                      </div>
+                    )}
+                    {/* --- End Pi Payment Section --- */}
                   </div>
                 </InfoWindow>
               )}

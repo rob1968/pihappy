@@ -14,7 +14,6 @@ class Config:
     ]
     GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
 class DevConfig(Config):
     DEBUG = True
 

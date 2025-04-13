@@ -5,6 +5,12 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 import './i18n'; // Import i18next configuration
 
+// Initialize Pi Network SDK
+// IMPORTANT: Replace with your actual Sandbox App Identifier from the Pi Developer Portal
+// Use { sandbox: false } for mainnet deployment
+window.Pi.init({ version: "2.0", sandbox: true });
+
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <Suspense fallback="Loading...">
