@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next'; // Import the hook
 // Removed Link import as it's now in MainMenu
 import './MainPage.css'; // Import the CSS
 import MoodVotingForm from './MoodVotingForm'; // Import the MoodVotingForm component
@@ -7,6 +8,7 @@ import ChatInterface from './ChatInterface'; // Import the ChatInterface compone
 import MainMenu from './MainMenu'; // <<< Import the MainMenu component
 
 const MainPage = () => {
+    const { t } = useTranslation(); // Get the translation function
     // State for various parts of the page
     const [laatsteStemming, setLaatsteStemming] = useState(null); // Last mood voted
     const [stemmingToegestaan, setStemmingToegestaan] = useState(null); // Can vote mood? Initialize as null
@@ -120,7 +122,7 @@ const MainPage = () => {
                 // setFeedbackVisible(true); // Don't show feedback box immediately
 
                 // Construct the AI follow-up question
-                const aiQuestionContent = `I see you're feeling ${mood}. Could you tell me a bit more about why?`;
+                const aiQuestionContent = t('mainPage.aiFollowUpQuestion', { mood: mood });
                 const aiQuestionMessage = {
                     role: "assistant",
                     content: aiQuestionContent,
@@ -140,19 +142,19 @@ const MainPage = () => {
                  setLaatsteStemming(data.laatste_stemming); // Show the existing mood
                  setStemmingToegestaan(false); // Keep voting disabled
                  // setFlashedMessages([{ message: data.message, category: 'warning' }]);
-                 alert(data.message); // Simple alert
+                 alert(data.message); // Alert content comes from backend, likely already translated or needs backend i18n
             }
             else { // Handle other errors (401 Unauthorized, 500 Server Error, etc.)
                 console.error("Failed to submit mood:", response.status, data.message);
                 // Don't re-enable voting here, rely on initial fetch state
                 // setFlashedMessages([{ message: data.message || 'Error submitting mood.', category: 'error' }]);
-                alert(`Error: ${data.message || response.statusText}`); // Simple alert
+                alert(t('mainPage.moodSubmitErrorAlert', { message: data.message || response.statusText })); // Simple alert
             }
         } catch (error) {
             console.error("Error submitting mood:", error); // Reverted log message
             // Don't re-enable voting here
             // setFlashedMessages([{ message: 'Network error submitting mood.', category: 'error' }]);
-            alert(`Network Error: ${error.message}`); // Simple alert
+            alert(t('mainPage.moodSubmitNetworkErrorAlert', { message: error.message })); // Simple alert
         }
         // No finally block needed to re-enable voting, as it's controlled by backend logic now
     };
@@ -248,12 +250,12 @@ const MainPage = () => {
             {/* Render the MainMenu component */}
             <MainMenu />
 
-            <h1>PiHappy - Mood & Chat</h1> {/* Updated heading */}
+            <h1>{t('mainPage.title')}</h1> {/* Updated heading */}
 
             {/* Last Mood Display */}
             {laatsteStemming && (
                 <div style={{ fontSize: '32px', fontWeight: 'bold', marginTop: '20px', color: '#28a745' }}>
-                    You are feeling {laatsteStemming} today
+                    {t('mainPage.feelingToday', { mood: laatsteStemming })}
                 </div>
             )}
 
@@ -274,7 +276,7 @@ const MainPage = () => {
 
             {/* Sound Toggle */}
             <button id="toggleSoundButton" onClick={toggleSound}>
-                {soundOn ? '🔊 Sound: On' : '🔇 Sound: Off'}
+                {soundOn ? t('mainPage.soundOn') : t('mainPage.soundOff')}
             </button>
 
             {/* Chat Section - Render the extracted ChatInterface component */}

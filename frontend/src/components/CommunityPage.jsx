@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next'; // Import the hook
 // Removed Link import as it's now in MainMenu
 import MainMenu from './MainMenu'; // <<< Import the MainMenu component
 // import './CommunityPage.css'; // Optional: Create and import CSS if needed
 
 const CommunityPage = () => {
+    const { t } = useTranslation(); // Get the translation function
     // State moved from MainPage
     const [communityInput, setCommunityInput] = useState('');
     // const [communityMessages, setCommunityMessages] = useState([]); // Keep if displaying messages
     const [analyseResultaat, setAnalyseResultaat] = useState('');
-    const [populaireThemas, setPopulaireThemas] = useState('Loading...');
-    const [topBijdragers, setTopBijdragers] = useState('Loading...');
+    const [populaireThemas, setPopulaireThemas] = useState(t('community.loading'));
+    const [topBijdragers, setTopBijdragers] = useState(t('community.loading'));
     const [canPost, setCanPost] = useState(true); // Assume true initially
     const [cooldownExpires, setCooldownExpires] = useState(null);
     const [countryCounts, setCountryCounts] = useState(null); // State for country counts
@@ -52,19 +54,19 @@ const CommunityPage = () => {
                     fetchInputStatus(); // Re-fetch status to get accurate expiry
                     alert(errorText); // Show the specific cooldown message
                 } else {
-                    alert(`Error: ${errorText}`); // Show other errors
+                    alert(t('community.errorAlert', { error: errorText })); // Show other errors
                 }
             }
         } catch (error) {
             console.error("Error sending community input:", error);
-            alert(`Network Error: ${error.message}`);
+            alert(t('community.networkErrorAlert', { message: error.message }));
         }
     };
 
     // Function to fetch and display the latest analysis result
     const fetchLatestAnalysis = async () => {
         console.log("Fetching latest community analysis...");
-        setAnalyseResultaat("⏳ Loading analysis..."); // Indicate loading
+        setAnalyseResultaat(`⏳ ${t('community.loadingAnalysis')}`); // Indicate loading
         try {
             // We can reuse the analyseCommunityInput service function if its backend
             // route now fetches the latest stored result.
@@ -81,14 +83,14 @@ const CommunityPage = () => {
 
             if (data.status === 'success') {
                 console.log("Latest analysis fetched:", data.ai_feedback);
-                setAnalyseResultaat(data.ai_feedback || "No analysis available yet."); // Show message if feedback is empty
+                setAnalyseResultaat(data.ai_feedback || t('community.noAnalysis')); // Show message if feedback is empty
             } else {
                  console.error("Error in analysis response:", data.message);
-                 setAnalyseResultaat(`Error: ${data.message || 'Could not load analysis'}`);
+                 setAnalyseResultaat(t('community.analysisError', { message: data.message || t('community.couldNotLoadAnalysis') }));
             }
         } catch (error) {
             console.error("Error fetching analysis:", error);
-            setAnalyseResultaat(`Network Error: ${error.message}`);
+            setAnalyseResultaat(t('community.networkError', { message: error.message }));
         }
     };
 
@@ -101,8 +103,8 @@ const CommunityPage = () => {
     // Function moved from MainPage
     const refreshCommunityStats = async () => {
         console.log("Refreshing community stats...");
-        setPopulaireThemas("⏳ Loading...");
-        setTopBijdragers("⏳ Loading...");
+        setPopulaireThemas(`⏳ ${t('community.loading')}`);
+        setTopBijdragers(`⏳ ${t('community.loading')}`);
 
         try {
             const response = await fetch('/api/community_input/statistieken', {
@@ -117,19 +119,19 @@ const CommunityPage = () => {
 
             if (response.ok && data.status === 'success') {
                 console.log("Stats refreshed successfully:", data);
-                setPopulaireThemas(data.populaire_themas.join(', ') || 'None');
+                setPopulaireThemas(data.populaire_themas.join(', ') || t('community.none'));
                 setTopBijdragers(
-                    data.top_bijdragers.map(b => `${b.naam} (${b.aantal})`).join(', ') || 'None'
+                    data.top_bijdragers.map(b => `${b.naam} (${b.aantal})`).join(', ') || t('community.none')
                 );
             } else {
                 console.error("Failed to refresh stats:", response.status, data.message);
-                const errorMsg = `Error: ${data.message || response.statusText}`;
+                const errorMsg = t('community.statsError', { message: data.message || response.statusText });
                 setPopulaireThemas(errorMsg);
                 setTopBijdragers(errorMsg);
             }
         } catch (error) {
             console.error("Error refreshing stats:", error);
-            const errorMsg = `Network Error: ${error.message}`;
+            const errorMsg = t('community.networkError', { message: error.message });
             setPopulaireThemas(errorMsg);
             setTopBijdragers(errorMsg);
         }
@@ -192,18 +194,18 @@ const CommunityPage = () => {
 
     // Helper function to calculate remaining time
     const calculateRemainingTime = (expiryIsoString) => {
-        if (!expiryIsoString) return 'a few minutes'; // Fallback
+        if (!expiryIsoString) return t('community.cooldownFewMinutes'); // Fallback
         const now = new Date();
         const expiry = new Date(expiryIsoString);
         const diffSeconds = Math.max(0, Math.floor((expiry - now) / 1000));
         const minutes = Math.floor(diffSeconds / 60);
         const seconds = diffSeconds % 60;
         if (minutes > 0) {
-            return `${minutes} minute${minutes > 1 ? 's' : ''}`;
+            return t('community.cooldownMinutes', { count: minutes });
         } else if (seconds > 0) {
-             return `${seconds} second${seconds > 1 ? 's' : ''}`;
+             return t('community.cooldownSeconds', { count: seconds });
         }
-        return 'a moment'; // Should ideally not happen if canPost is false
+        return t('community.cooldownMoment'); // Should ideally not happen if canPost is false
     };
 
     return (
@@ -211,16 +213,16 @@ const CommunityPage = () => {
             {/* Render the MainMenu component */}
             <MainMenu />
 
-            <h1>Community Page</h1>
+            <h1>{t('community.pageTitle')}</h1>
 
             {/* Community Section JSX moved from MainPage */}
-            <h2>🌍 Community Input</h2>
+            <h2>{t('community.inputTitle')}</h2>
             {/* Conditionally render input form or cooldown message */}
             {canPost ? (
                 <div className="community-input-area-whatsapp"> {/* Use class */}
                     <textarea
                         id="inputText" // Keep ID
-                        placeholder="Share your idea or suggestion (max 250 characters)"
+                        placeholder={t('community.inputPlaceholder')}
                         value={communityInput}
                         maxLength={250} // Enforce character limit
                         onChange={(e) => setCommunityInput(e.target.value)}
@@ -241,33 +243,33 @@ const CommunityPage = () => {
                         id="sendInputButton"
                         onClick={handleCommunitySubmit}
                         className="community-send-button-whatsapp" // Use class
-                        title="Send" // Tooltip
+                        title={t('community.sendButtonTitle')} // Tooltip
                     >
                         ➤ {/* Simple send icon */}
                     </button>
                 </div>
             ) : (
                 <div className="cooldown-message" style={{ marginTop: '10px', padding: '10px', backgroundColor: '#fff3cd', border: '1px solid #ffeeba', borderRadius: '5px', color: '#856404' }}>
-                    You can post again in {calculateRemainingTime(cooldownExpires)}.
+                    {t('community.cooldownMessage', { time: calculateRemainingTime(cooldownExpires) })}
                 </div>
             )}
             {/* Keep other buttons separate */}
-            <button id="analyseCommunityButton" onClick={refreshAnalysisDisplay} style={{ marginRight: '10px' }}>🔍 Refresh Analysis Display</button>
-            <button id="refreshStatsButton" onClick={refreshCommunityStats}>🔄 Refresh Stats</button>
+            <button id="analyseCommunityButton" onClick={refreshAnalysisDisplay} style={{ marginRight: '10px' }}>{t('community.refreshAnalysisButton')}</button>
+            <button id="refreshStatsButton" onClick={refreshCommunityStats}>{t('community.refreshStatsButton')}</button>
 
 
-            <h2>🤖 AI Analysis Community</h2>
+            <h2>{t('community.analysisTitle')}</h2>
             <div id="analyse_resultaat">{analyseResultaat}</div>
 
-            <h2>📊 Community Statistics</h2>
+            <h2>{t('community.statsTitle')}</h2>
             <div id="statistieken_resultaat">
-                <p><strong>🔍 Popular Topics:</strong> <span id="populaireThemas">{populaireThemas}</span></p>
-                <p><strong>🏆 Top Contributors:</strong> <span id="topBijdragers">{topBijdragers}</span></p>
+                <p><strong>{t('community.popularTopicsLabel')}:</strong> <span id="populaireThemas">{populaireThemas}</span></p>
+                <p><strong>{t('community.topContributorsLabel')}:</strong> <span id="topBijdragers">{topBijdragers}</span></p>
                 {/* Display Country Counts */}
                 <div>
-                    <strong>🌍 Inputs by Country:</strong>
+                    <strong>{t('community.inputsByCountryLabel')}:</strong>
                     {countryCounts === null ? (
-                        <span> Loading...</span>
+                        <span> {t('community.loading')}</span>
                     ) : Object.keys(countryCounts).length > 0 ? (
                         <ul style={{ listStyle: 'none', paddingLeft: '10px', marginTop: '5px' }}>
                             {Object.entries(countryCounts)
@@ -277,7 +279,7 @@ const CommunityPage = () => {
                             ))}
                         </ul>
                     ) : (
-                        <span> No data available.</span>
+                        <span> {t('community.noDataAvailable')}</span>
                     )}
                 </div>
             </div>

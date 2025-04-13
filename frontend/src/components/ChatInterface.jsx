@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next'; // Import the hook
 
 const ChatInterface = ({ initialMessages, userLanguage, soundOn, playTextToSpeech }) => {
+    const { t } = useTranslation(); // Get the translation function
     const [chatMessages, setChatMessages] = useState(initialMessages || []);
     const [chatInput, setChatInput] = useState('');
     const [searchInput, setSearchInput] = useState('');
@@ -94,12 +96,12 @@ const ChatInterface = ({ initialMessages, userLanguage, soundOn, playTextToSpeec
                 const errorData = await response.json().catch(() => ({}));
                 const errorText = errorData.antwoord || errorData.message || response.statusText;
                 console.error("Failed to send chat message:", response.status, errorText);
-                alert(`Error: ${errorText}`);
+                alert(t('chat.errorAlert', { error: errorText }));
                 // setChatInput(currentInput); // Optionally restore input
             }
         } catch (error) {
             console.error("Error sending chat message:", error);
-            const errorMessage = { role: "error", content: `Error sending message: ${error.message}`, tijd: new Date().toISOString() };
+            const errorMessage = { role: "error", content: t('chat.errorSendingMessage', { message: error.message }), tijd: new Date().toISOString() };
             setChatMessages(prevMessages => [...prevMessages, errorMessage]);
         } finally {
             setAiIsBezig(false);
@@ -126,11 +128,11 @@ const ChatInterface = ({ initialMessages, userLanguage, soundOn, playTextToSpeec
             } else {
                 const errorData = await response.json().catch(() => ({}));
                 console.error(`Failed to delete message ${messageId}:`, response.status, errorData.message || response.statusText);
-                alert(`Error deleting message: ${errorData.message || response.statusText}`);
+                alert(t('chat.errorDeletingMessage', { message: errorData.message || response.statusText }));
             }
         } catch (error) {
             console.error(`Network error deleting message ${messageId}:`, error);
-            alert(`Network error: ${error.message}`);
+            alert(t('chat.networkErrorAlert', { message: error.message }));
         }
     };
 
@@ -140,7 +142,7 @@ const ChatInterface = ({ initialMessages, userLanguage, soundOn, playTextToSpeec
             <input
                 type="text"
                 id="searchInput"
-                placeholder="Search in messages.."
+                placeholder={t('chat.searchPlaceholder')}
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 className="chat-search-input" // Add specific class if needed
@@ -151,13 +153,13 @@ const ChatInterface = ({ initialMessages, userLanguage, soundOn, playTextToSpeec
                 {chatMessages.map((msg, index) => (
                      <div key={msg.tijd || index} className={`message ${msg.role}`} data-content={msg.content.toLowerCase()}>
                         <div style={{ fontSize: '0.9em', color: 'gray' }}>🕒 {new Date(msg.tijd).toLocaleTimeString('en-US')}</div>
-                        <strong>{msg.role === "user" ? "You" : msg.role === "assistant" ? "AI" : "⚠️ Error"}:</strong>
+                        <strong>{msg.role === "user" ? t('chat.roleUser') : msg.role === "assistant" ? t('chat.roleAssistant') : t('chat.roleError')}:</strong>
                         <span className="bericht-tekst" data-original-text={msg.content}>{msg.content}</span>
                         <button
                             onClick={() => handleDeleteMessage(msg.tijd)}
                             className="delete-message-button"
-                            title="Delete this message"
-                            aria-label="Delete message"
+                            title={t('chat.deleteButtonTitle')}
+                            aria-label={t('chat.deleteButtonTitle')}
                         >
                             🗑️
                         </button>
@@ -169,7 +171,7 @@ const ChatInterface = ({ initialMessages, userLanguage, soundOn, playTextToSpeec
             <div className="chat-input-area-whatsapp">
                 <textarea
                     id="chatInput"
-                    placeholder="Ask a question... (max 250 characters)"
+                    placeholder={t('chat.inputPlaceholder')}
                     value={chatInput}
                     maxLength={250}
                     onChange={(e) => setChatInput(e.target.value)}
@@ -191,8 +193,8 @@ const ChatInterface = ({ initialMessages, userLanguage, soundOn, playTextToSpeec
                     onClick={handleChatSubmit}
                     disabled={aiIsBezig}
                     className="chat-send-button-whatsapp" // Use class for styling
-                    title="Send message"
-                    aria-label="Send message"
+                    title={t('chat.sendButtonTitle')}
+                    aria-label={t('chat.sendButtonTitle')}
                 >
                     ➤
                 </button>

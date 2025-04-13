@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next'; // Import the hook
 import { Navigate, useLocation } from 'react-router-dom';
 
 const ProtectedRoute = ({ children }) => {
+    const { t } = useTranslation(); // Get the translation function
     const [isAuthenticated, setIsAuthenticated] = useState(null); // null = loading, true = authenticated, false = not authenticated
     const location = useLocation();
 
@@ -41,7 +43,7 @@ const ProtectedRoute = ({ children }) => {
     if (isAuthenticated === null) {
         // Show a loading indicator while checking authentication
         // You can replace this with a proper spinner component later
-        return <div>Loading...</div>;
+        return <div>{t('protectedRoute.loading')}</div>;
     }
 
     if (!isAuthenticated) {

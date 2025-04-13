@@ -1,6 +1,8 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next'; // Import the hook
 
 function InternalServerErrorPage({ errorInfo }) {
+  const { t } = useTranslation(); // Get the translation function
   // You could pass specific error details via props if available
   return (
     <div className="container mt-5 text-center">
@@ -9,13 +11,13 @@ function InternalServerErrorPage({ errorInfo }) {
           <div className="card shadow-sm border-danger">
             <div className="card-body">
               <h1 className="display-1 text-danger">500</h1>
-              <h2 className="card-title mb-4">Internal Server Error</h2>
+              <h2 className="card-title mb-4">{t('serverError.title')}</h2>
               <p className="card-text">
-                Oops! Something went wrong on our end. We are working to fix the problem. Please try again later.
+                {t('serverError.message')}
               </p>
               {errorInfo && (
                 <pre className="text-start text-muted small mt-3 p-2 bg-light border rounded">
-                  <code>Error details: {JSON.stringify(errorInfo, null, 2)}</code>
+                  <code>{t('serverError.detailsPrefix')}: {JSON.stringify(errorInfo, null, 2)}</code>
                 </pre>
               )}
               {/* Optional: Add a button to try reloading or go home */}

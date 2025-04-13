@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react"; // Removed useRef, useCallback
+import React, { useState, useEffect } from "react";
+import { useTranslation } from 'react-i18next'; // Import the hook
 import { useNavigate } from "react-router-dom";
 // Removed useJsApiLoader, Autocomplete
 import './MainPage.css'; // Import the shared CSS file
@@ -6,6 +7,7 @@ import './MainPage.css'; // Import the shared CSS file
 // Removed libraries constant
 
 const AuthForm = () => {
+  const { t } = useTranslation(); // Get the translation function
   const [isLoginMode, setIsLoginMode] = useState(true); // Start in Login mode
 
   // Combined State
@@ -72,11 +74,11 @@ const AuthForm = () => {
         if (response.ok) {
           window.location.href = '/';
         } else {
-          alert(`Login Error: ${result.message}`);
+          alert(t('auth.loginError', { message: result.message }));
         }
       } catch (error) {
         console.error("Error during login:", error);
-        alert("An error occurred during login. Please try again later.");
+        alert(t('auth.loginErrorGeneric'));
       }
     } else {
       // --- Register Logic ---
@@ -94,7 +96,7 @@ const AuthForm = () => {
 
       // <<< MODIFIED: Include gekozenLandNaam in validation >>>
       if (!name || !email || !password || !gekozenLandCode || !gekozenLandNaam || !gekozenTaal) {
-          alert("Please fill in all required fields: Name, Email, Password, Country, and Language.");
+          alert(t('auth.fillAllFieldsError'));
           return;
       }
 
@@ -107,7 +109,7 @@ const AuthForm = () => {
         .then((res) => res.json())
         .then((result) => {
           if (result.status === "success") {
-            alert("Registration successful! You can now log in.");
+            alert(t('auth.registrationSuccess'));
             setIsLoginMode(true);
             setName("");
             setPassword("");
@@ -115,12 +117,12 @@ const AuthForm = () => {
             setGekozenLandNaam(""); // <<< ADDED: Clear name
             setGekozenTaal("");
           } else {
-             alert(`Registration Error: ${result.message}`);
+             alert(t('auth.registrationError', { message: result.message }));
           }
         })
         .catch((err) => {
           console.error("Error submitting registration:", err);
-          alert("An error occurred during registration. Please try again later.");
+          alert(t('auth.registrationErrorGeneric'));
         });
     }
   };
@@ -140,12 +142,12 @@ const AuthForm = () => {
       <div className="col-md-6 col-lg-5">
         <div className="card shadow-lg">
           <div className="card-body">
-            <h2 className="text-center">🔐 {isLoginMode ? "Login" : "Register"}</h2>
+            <h2 className="text-center">🔐 {t(isLoginMode ? 'auth.login' : 'auth.register')}</h2>
             <form onSubmit={handleSubmit}>
               {/* --- Fields for Both Modes --- */}
               <div className="mb-3">
                 <label htmlFor="email" className="form-label">
-                  📧 E-mail <span className="text-danger">*</span>
+                  📧 {t('auth.emailLabel')} <span className="text-danger">*</span>
                 </label>
                 <input
                   type="email"
@@ -161,7 +163,7 @@ const AuthForm = () => {
 
               <div className="mb-3">
                 <label htmlFor="password" className="form-label">
-                  🔑 Password <span className="text-danger">*</span>
+                  🔑 {t('auth.passwordLabel')} <span className="text-danger">*</span>
                 </label>
                 <input
                   type="password"
@@ -173,7 +175,7 @@ const AuthForm = () => {
                   required
                   minLength={isLoginMode ? undefined : 6}
                   pattern={isLoginMode ? undefined : ".{6,}"}
-                  title={isLoginMode ? undefined : "At least 6 characters"}
+                  title={isLoginMode ? undefined : t('auth.passwordMinLengthTitle')}
                 />
               </div>
 
@@ -182,7 +184,7 @@ const AuthForm = () => {
                 <>
                   <div className="mb-3">
                     <label htmlFor="naam" className="form-label">
-                      👤 Name <span className="text-danger">*</span>
+                      👤 {t('auth.nameLabel')} <span className="text-danger">*</span>
                     </label>
                     <input
                       type="text"
@@ -198,7 +200,7 @@ const AuthForm = () => {
 
                   <div className="mb-3">
                     <label htmlFor="land" className="form-label">
-                      🌍 Choose your country <span className="text-danger">*</span>
+                      🌍 {t('auth.countryLabel')} <span className="text-danger">*</span>
                     </label>
                     <select
                       id="land"
@@ -208,7 +210,7 @@ const AuthForm = () => {
                       onChange={handleCountryChange} // <<< MODIFIED: Use new handler
                       required
                     >
-                      <option value="" disabled>🌐 Select a country...</option>
+                      <option value="" disabled>🌐 {t('auth.selectCountryPlaceholder')}</option>
                       {landen.map((land) => (
                         <option key={land.code} value={land.code.toLowerCase()}>
                           {land.naam}
@@ -222,7 +224,7 @@ const AuthForm = () => {
                   {/* --- Preferred Language Dropdown --- */}
                   <div className="mb-3">
                     <label htmlFor="language" className="form-label">
-                      🗣️ Preferred Language <span className="text-danger">*</span>
+                      🗣️ {t('auth.languageLabel')} <span className="text-danger">*</span>
                     </label>
                     <select
                       id="language"
@@ -232,8 +234,11 @@ const AuthForm = () => {
                       onChange={(e) => setGekozenTaal(e.target.value)}
                       required
                     >
-                      <option value="" disabled>🌐 Select a language...</option>
+                      <option value="" disabled>🌐 {t('auth.selectLanguagePlaceholder')}</option>
                       {Object.entries({
+                        // Note: Language names themselves might need translation if displayed elsewhere,
+                        // but for the dropdown options, keeping them consistent might be okay.
+                        // If these need translation, they should be moved to the JSON files.
                         "en": "English", "nl": "Dutch", "es": "Spanish", "de": "German",
                         "fr": "French", "zh": "Chinese", "hi": "Hindi", "id": "Indonesian",
                         "ur": "Urdu", "pt": "Portuguese", "bn": "Bengali", "ru": "Russian",
@@ -252,15 +257,15 @@ const AuthForm = () => {
 
               {/* --- Submit Button --- */}
               <button type="submit" className="btn btn-primary w-100 mt-3">
-                ✅ {isLoginMode ? "Login" : "Register"}
+                ✅ {t(isLoginMode ? 'auth.loginButton' : 'auth.registerButton')}
               </button>
             </form>
 
             {/* --- Toggle Link --- */}
             <p className="text-center mt-3">
-              {isLoginMode ? "Don't have an account yet?" : "Already have an account?"}{" "}
+              {t(isLoginMode ? 'auth.dontHaveAccount' : 'auth.alreadyHaveAccount')}{" "}
               <button type="button" className="btn btn-link p-0" onClick={toggleMode}>
-                {isLoginMode ? "Register" : "Login"}
+                {t(isLoginMode ? 'auth.registerLink' : 'auth.loginLink')}
               </button>
             </p>
           </div>

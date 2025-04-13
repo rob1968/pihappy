@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation, Trans } from 'react-i18next'; // Import hooks and Trans component
 // Import Autocomplete along with other components
 import { GoogleMap, LoadScript, Marker, InfoWindow, Autocomplete } from '@react-google-maps/api';
 import MainMenu from './MainMenu'; // <<< Import the MainMenu component
@@ -15,6 +16,7 @@ const containerStyle = {
 };
 
 function Pilocations() {
+  const { t } = useTranslation(); // Get the translation function
   const [winkels, setWinkels] = useState([]);
   const [filteredWinkels, setFilteredWinkels] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -195,7 +197,7 @@ function Pilocations() {
     setAddShopError(null);
 
     if (newShopLatitude === null || newShopLongitude === null) {
-        setAddShopError("Could not determine coordinates for the location. Please select a valid address.");
+        setAddShopError(t('pilocations.errorNoCoords'));
         setAddShopLoading(false);
         return;
     }
@@ -252,7 +254,7 @@ function Pilocations() {
     })
     .catch(err => {
       console.error("Error adding shop:", err);
-      setAddShopError(err.message || "Failed to add shop. Please try again.");
+      setAddShopError(err.message || t('pilocations.errorAddShopFailed'));
     })
     .finally(() => {
       setAddShopLoading(false);
@@ -331,32 +333,32 @@ function Pilocations() {
 
 
   if (!MAP_API_KEY) {
-    return <div className="pilocations-container error">Google Maps API Key is missing. Please configure REACT_APP_GOOGLE_MAPS_API_KEY.</div>;
+    return <div className="pilocations-container error">{t('pilocations.errorApiKeyMissing')}</div>;
   }
 
   // Use initialMapCenter state for loading check too
   if (loading || !mapCenter) { // <<< Wait for mapCenter
-    return <div className="pilocations-container"><p style={{ textAlign: 'center', marginTop: '20px' }}>Loading map data...</p></div>;
+    return <div className="pilocations-container"><p style={{ textAlign: 'center', marginTop: '20px' }}>{t('pilocations.loadingMapData')}</p></div>;
   }
 
   if (error) {
-      return <div className="pilocations-container"><p className="error">Map Error: {error}</p></div>;
+      return <div className="pilocations-container"><p className="error">{t('pilocations.mapError', { error: error })}</p></div>;
   }
 
   return (
     <div className="pilocations-container">
       {/* Render the MainMenu component */}
       <MainMenu />
-      <h1>Pi Coin Accepted Locations</h1>
+      <h1>{t('pilocations.pageTitle')}</h1>
 
       {/* Map Container */}
       <div className="map-container">
         <LoadScript googleMapsApiKey={MAP_API_KEY} libraries={LIBRARIES}>
           <>
             <div className="controls">
-              <label htmlFor="category-filter">Category:</label>
+              <label htmlFor="category-filter">{t('pilocations.categoryFilterLabel')}:</label>
               <select id="category-filter" className="form-select form-select-sm" value={selectedCategory} onChange={handleCategoryChange}>
-                <option value="all">All</option>
+                <option value="all">{t('pilocations.filterAll')}</option>
                 {availableCategories.map(category => (
                   <option key={category} value={category}>
                     {category.charAt(0).toUpperCase() + category.slice(1)}
@@ -365,17 +367,17 @@ function Pilocations() {
               </select>
 
               {/* <<< Added Sales Channel Filter >>> */}
-              <label htmlFor="sales-channel-filter" style={{ marginLeft: '10px' }}>Sales Channel:</label>
+              <label htmlFor="sales-channel-filter" style={{ marginLeft: '10px' }}>{t('pilocations.salesChannelFilterLabel')}:</label>
               <select
                 id="sales-channel-filter"
                 className="form-select form-select-sm"
                 value={selectedSalesChannel}
                 onChange={(e) => setSelectedSalesChannel(e.target.value)}
               >
-                <option value="all">All</option>
-                <option value="Offline">Offline</option>
-                <option value="Online">Online</option>
-                <option value="Offline & Online">Offline & Online</option>
+                <option value="all">{t('pilocations.filterAll')}</option>
+                <option value="Offline">{t('pilocations.salesChannelOffline')}</option>
+                <option value="Online">{t('pilocations.salesChannelOnline')}</option>
+                <option value="Offline & Online">{t('pilocations.salesChannelBoth')}</option>
               </select>
             </div>
             <GoogleMap
@@ -392,7 +394,7 @@ function Pilocations() {
                   <Marker
                     key={shop._id}
                     position={position}
-                    title={shop.name || 'Name unknown'}
+                    title={shop.name || t('pilocations.nameUnknown')}
                     icon={iconSize ? { url: ICON_URL, scaledSize: iconSize } : undefined}
                     onClick={() => handleMarkerClick(shop)}
                   />
@@ -405,21 +407,25 @@ function Pilocations() {
                   onCloseClick={handleInfoWindowClose}
                 >
                   <div className="info-window-content">
-                    <h3>{selectedWinkel.name || "Name unknown"}</h3>
-                    <p>{selectedWinkel.location || "Location unknown"}</p>
-                    <p>Category: {selectedWinkel.category || "Unknown"}</p>
+                    <h3>{selectedWinkel.name || t('pilocations.nameUnknown')}</h3>
+                    <p>{selectedWinkel.location || t('pilocations.locationUnknown')}</p>
+                    <p>{t('pilocations.infoWindowCategoryLabel')}: {selectedWinkel.category || t('pilocations.categoryUnknown')}</p>
                     {selectedWinkel.phone && (
-                      <p>Phone: {selectedWinkel.phone}</p>
+                      <p>{t('pilocations.infoWindowPhoneLabel')}: {selectedWinkel.phone}</p>
                     )}
                     {selectedWinkel.website && (
-                      <p>Website: <a href={selectedWinkel.website} target="_blank" rel="noopener noreferrer">{selectedWinkel.website}</a></p>
+                      <p>
+                        <Trans i18nKey="pilocations.infoWindowWebsiteLabel">
+                          Website: <a href={selectedWinkel.website} target="_blank" rel="noopener noreferrer">{{website: selectedWinkel.website}}</a>
+                        </Trans>
+                      </p>
                     )}
                     <a
                       href={`https://www.google.com/maps/dir/?api=1&destination=${selectedWinkel.latitude},${selectedWinkel.longitude}`}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      Plan Route
+                      {t('pilocations.planRouteLink')}
                     </a>
                   </div>
                 </InfoWindow>
@@ -432,23 +438,23 @@ function Pilocations() {
       {/* Add Shop Button and Form (Moved below map) */}
       <div style={{ marginTop: '20px' }}> {/* Add some spacing */}
         <button onClick={() => setShowAddShopForm(!showAddShopForm)} className="btn btn-primary mb-3">
-          {showAddShopForm ? 'Cancel Adding Pi Location' : 'Add Pay with Pi Location'}
+          {showAddShopForm ? t('pilocations.cancelAddButton') : t('pilocations.addLocationButton')}
         </button>
 
         {showAddShopForm && (
           <div className="add-shop-form card mb-4 p-3">
-            <h2></h2>
+            <h2>{t('pilocations.addFormTitle')}</h2>
             <form onSubmit={handleAddShopSubmit}>
 
               {/* Location Autocomplete (Moved to top) */}
               <div className="mb-3">
-                <label htmlFor="newShopLocation" className="form-label">Location *</label>
+                <label htmlFor="newShopLocation" className="form-label">{t('pilocations.addFormLocationLabel')} *</label>
                 <Autocomplete onLoad={onAutocompleteLoad} onPlaceChanged={onPlaceChanged}>
                   <input
                     type="text"
                     id="newShopLocation"
                     className="form-control"
-                    placeholder="Enter Location"
+                    placeholder={t('pilocations.addFormLocationPlaceholder')}
                     value={newShopLocation}
                     onChange={(e) => setNewShopLocation(e.target.value)}
                     required
@@ -460,12 +466,12 @@ function Pilocations() {
 
               {/* Company Name Input + Custom Suggestions */}
               <div className="mb-3">
-                <label htmlFor="newShopName" className="form-label">Company *</label>
+                <label htmlFor="newShopName" className="form-label">{t('pilocations.addFormCompanyLabel')} *</label>
                 <input
                   type="text"
                   id="newShopName"
                   className="form-control"
-                  placeholder="Company Name (Suggestions appear after address)"
+                  placeholder={t('pilocations.addFormCompanyPlaceholder')}
                   value={newShopName}
                   onChange={(e) => setNewShopName(e.target.value)}
                   required
@@ -494,9 +500,9 @@ function Pilocations() {
 
               {/* Category Dropdown */}
               <div className="mb-3">
-                 <label htmlFor="newShopCategory" className="form-label">Category *</label>
+                 <label htmlFor="newShopCategory" className="form-label">{t('pilocations.addFormCategoryLabel')} *</label>
                  <select id="newShopCategory" className="form-select" value={newShopCategory} onChange={(e) => setNewShopCategory(e.target.value)} required disabled={addShopLoading}>
-                   <option value="" disabled>-- Select a Category --</option>
+                   <option value="" disabled>{t('pilocations.addFormSelectCategoryPlaceholder')}</option>
                    {availableCategories.map(category => (
                      <option key={category} value={category}>
                        {category.charAt(0).toUpperCase() + category.slice(1)}
@@ -507,12 +513,12 @@ function Pilocations() {
 
               {/* <<< Added Phone Input >>> */}
               <div className="mb-3">
-                <label htmlFor="newShopPhone" className="form-label">Phone (Optional)</label>
+                <label htmlFor="newShopPhone" className="form-label">{t('pilocations.addFormPhoneLabel')}</label>
                 <input
                   type="tel" // Use type="tel" for phone numbers
                   id="newShopPhone"
                   className="form-control"
-                  placeholder="e.g., +31 6 12345678"
+                  placeholder={t('pilocations.addFormPhonePlaceholder')}
                   value={newShopPhone}
                   onChange={(e) => setNewShopPhone(e.target.value)}
                   disabled={addShopLoading}
@@ -521,12 +527,12 @@ function Pilocations() {
 
               {/* <<< Added Website Input >>> */}
               <div className="mb-3">
-                <label htmlFor="newShopWebsite" className="form-label">Website (Optional)</label>
+                <label htmlFor="newShopWebsite" className="form-label">{t('pilocations.addFormWebsiteLabel')}</label>
                 <input
                   type="url" // Use type="url" for websites
                   id="newShopWebsite"
                   className="form-control"
-                  placeholder="e.g., https://www.example.com"
+                  placeholder={t('pilocations.addFormWebsitePlaceholder')}
                   value={newShopWebsite}
                   onChange={(e) => setNewShopWebsite(e.target.value)}
                   disabled={addShopLoading}
@@ -535,7 +541,7 @@ function Pilocations() {
 
               {/* Sales Channel Dropdown (Replaced Type Input) */}
                <div className="mb-3">
-                 <label htmlFor="newShopSalesChannel" className="form-label">Sales channel</label>
+                 <label htmlFor="newShopSalesChannel" className="form-label">{t('pilocations.addFormSalesChannelLabel')}</label>
                  <select
                    id="newShopSalesChannel"
                    className="form-select"
@@ -544,17 +550,17 @@ function Pilocations() {
                    disabled={addShopLoading}
                    required // Make selection required if needed
                  >
-                   <option value="" disabled>-- Select --</option>
-                   <option value="Offline">Offline</option>
-                   <option value="Online">Online</option>
-                   <option value="Offline & Online">Offline & Online</option>
+                   <option value="" disabled>{t('pilocations.addFormSelectPlaceholder')}</option>
+                   <option value="Offline">{t('pilocations.salesChannelOffline')}</option>
+                   <option value="Online">{t('pilocations.salesChannelOnline')}</option>
+                   <option value="Offline & Online">{t('pilocations.salesChannelBoth')}</option>
                  </select>
                </div>
 
-              {addShopError && <p className="error text-danger">Error: {addShopError}</p>}
+              {addShopError && <p className="error text-danger">{t('pilocations.addFormErrorPrefix')}: {addShopError}</p>}
 
               <button type="submit" className="btn btn-success" disabled={addShopLoading}>
-                {addShopLoading ? 'Adding...' : 'Submit Location'}
+                {addShopLoading ? t('pilocations.addFormAddingButton') : t('pilocations.addFormSubmitButton')}
               </button>
             </form>
           </div>

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation, Trans } from 'react-i18next'; // Import hook and Trans component
 import { useParams, useNavigate } from 'react-router-dom'; // Import useParams and useNavigate
 import MainMenu from './MainMenu'; // <<< Import the MainMenu component
 import './ProfilePage.css'; // We'll create this CSS file later
 
 function ProfilePage() {
+  const { t } = useTranslation(); // Get the translation function
   const { userId } = useParams(); // Get userId from URL parameter
   const navigate = useNavigate(); // Get navigate function
   const [profile, setProfile] = useState(null);
@@ -34,7 +36,7 @@ function ProfilePage() {
       .then(response => {
         if (!response.ok) {
           if (response.status === 401) {
-             throw new Error('Not logged in. Please log in to view your profile.');
+             throw new Error(t('profile.errorNotLoggedIn'));
           }
           return response.json().then(errData => {
              throw new Error(errData.error || `HTTP error! status: ${response.status}`);
@@ -60,7 +62,7 @@ function ProfilePage() {
       })
       .catch(err => {
         console.error("Error fetching profile:", err);
-        setError(err.message || 'Failed to load profile data.');
+        setError(err.message || t('profile.errorLoadFailed'));
         setProfile(null);
       })
       .finally(() => {
@@ -116,7 +118,7 @@ function ProfilePage() {
       })
       .catch((err) => {
         console.error("Error fetching countries:", err);
-        setError(prevError => prevError ? `${prevError}\nFailed to load country list.` : 'Failed to load country list.');
+        setError(prevError => prevError ? `${prevError}\n${t('profile.errorLoadCountriesFailed')}` : t('profile.errorLoadCountriesFailed'));
         setCountries([]);
       });
   }, []); // Fetch countries only once on mount
@@ -140,15 +142,15 @@ function ProfilePage() {
   }, []); // Fetch categories once on mount
 
   if (loadingProfile) {
-    return <div className="profile-container"><p>Loading profile...</p></div>;
+    return <div className="profile-container"><p>{t('profile.loadingProfile')}</p></div>;
   }
 
   if (error && !profile) {
-      return <div className="profile-container error"><p>Error: {error}</p></div>;
+      return <div className="profile-container error"><p>{t('profile.errorPrefix')}: {error}</p></div>;
   }
 
   if (!profile) {
-      return <div className="profile-container"><p>Could not load profile. Are you logged in?</p></div>;
+      return <div className="profile-container"><p>{t('profile.errorLoadProfileCheckLogin')}</p></div>;
   }
 
   // --- Edit Profile Handlers ---
@@ -200,7 +202,7 @@ function ProfilePage() {
     };
 
     if (dataToSave.land && dataToSave.land !== 'other' && !dataToSave.full_country_name) {
-        setEditError("Could not determine full country name for the selected code. Please re-select the country.");
+        setEditError(t('profile.errorEditCountryName'));
         setIsSavingProfile(false);
         return;
     }
@@ -230,7 +232,7 @@ function ProfilePage() {
     })
     .catch(err => {
       console.error("Error updating profile:", err);
-      setEditError(err.message || 'Failed to save profile.');
+      setEditError(err.message || t('profile.errorSaveProfileFailed'));
     })
     .finally(() => {
       setIsSavingProfile(false);
@@ -245,11 +247,11 @@ function ProfilePage() {
         window.location.href = '/';
       } else {
         const errorData = await response.json().catch(() => ({}));
-        alert(`Logout failed: ${errorData.message || response.statusText}`);
+        alert(t('profile.errorLogoutFailed', { message: errorData.message || response.statusText }));
       }
     } catch (error) {
       console.error('Logout error:', error);
-      alert('An error occurred during logout. Please try again.');
+      alert(t('profile.errorLogoutGeneric'));
     }
   };
 
@@ -314,7 +316,7 @@ function ProfilePage() {
     })
     .catch(err => {
       console.error("Error updating shop:", err);
-      setEditShopError(err.message || 'Failed to save shop changes.');
+      setEditShopError(err.message || t('profile.errorSaveShopFailed'));
     })
     .finally(() => {
       setIsSavingShop(false);
@@ -323,7 +325,7 @@ function ProfilePage() {
 
   // --- Delete Shop Handler ---
   const handleShopDeleteClick = (shopId, shopName) => {
-    if (window.confirm(`Are you sure you want to delete the location "${shopName}"? This action cannot be undone.`)) {
+    if (window.confirm(t('profile.confirmDeleteShop', { name: shopName }))) {
       // Consider adding a loading state for delete if needed
       fetch(`/api/shops/${shopId}`, {
         method: 'DELETE',
@@ -337,7 +339,7 @@ function ProfilePage() {
         }
         // Handle potential 204 No Content response
         if (response.status === 204) {
-            return { message: "Shop deleted successfully" }; // Simulate success data
+            return { message: t('profile.shopDeletedSuccessMessage') }; // Simulate success data
         }
         return response.json();
       })
@@ -345,11 +347,11 @@ function ProfilePage() {
         console.log("Shop deleted successfully", data);
         fetchUserShops(); // Refresh the list after deletion
         // Optionally show a success message
-        alert(`Location "${shopName}" deleted successfully.`);
+        alert(t('profile.alertShopDeletedSuccess', { name: shopName }));
       })
       .catch(err => {
         console.error("Error deleting shop:", err);
-        alert(`Failed to delete location: ${err.message}`);
+        alert(t('profile.alertShopDeleteFailed', { message: err.message }));
       });
     }
   };
@@ -373,25 +375,25 @@ function ProfilePage() {
     <> {/* Use Fragment to wrap Menu and container */}
       <MainMenu />
     <div className="profile-container container mt-4">
-      <h1>Your Profile</h1>
-      {error && <p className="error text-danger">Error loading profile data: {error}</p>}
+      <h1>{t('profile.pageTitle')}</h1>
+      {error && <p className="error text-danger">{t('profile.errorLoadingData', { error: error })}</p>}
 
       <div className="card mb-4">
         <div className="card-header d-flex justify-content-between align-items-center">
-          User Information
+          {t('profile.userInfoHeader')}
           <div>
             {!isEditingProfile && (
-              <button className="btn btn-sm btn-outline-secondary me-2" onClick={handleProfileEditClick}>Edit Profile</button>
+              <button className="btn btn-sm btn-outline-secondary me-2" onClick={handleProfileEditClick}>{t('profile.editProfileButton')}</button>
             )}
-            <button className="btn btn-sm btn-danger" onClick={handleLogout}>Logout</button>
+            <button className="btn btn-sm btn-danger" onClick={handleLogout}>{t('profile.logoutButton')}</button>
           </div>
         </div>
         <div className="card-body">
-          {editError && <p className="error text-danger">Error: {editError}</p>}
+          {editError && <p className="error text-danger">{t('profile.errorPrefix')}: {editError}</p>}
           {isEditingProfile ? (
             <>
               <div className="mb-3 row">
-                <label htmlFor="editNaam" className="col-sm-2 col-form-label"><strong>Name:</strong></label>
+                <label htmlFor="editNaam" className="col-sm-2 col-form-label"><strong>{t('profile.nameLabel')}:</strong></label>
                 <div className="col-sm-10">
                   <input
                     type="text"
@@ -404,13 +406,13 @@ function ProfilePage() {
                 </div>
               </div>
               <div className="mb-3 row">
-                 <label className="col-sm-2 col-form-label"><strong>Email:</strong></label>
+                 <label className="col-sm-2 col-form-label"><strong>{t('profile.emailLabel')}:</strong></label>
                  <div className="col-sm-10">
-                    <p className="form-control-plaintext">{profile.email || 'N/A'} (Cannot be changed)</p>
+                    <p className="form-control-plaintext">{profile.email || t('profile.notAvailable')} ({t('profile.emailCannotBeChanged')})</p>
                  </div>
               </div>
               <div className="mb-3 row">
-                <label htmlFor="editLand" className="col-sm-2 col-form-label"><strong>Country:</strong></label>
+                <label htmlFor="editLand" className="col-sm-2 col-form-label"><strong>{t('profile.countryLabel')}:</strong></label>
                 <div className="col-sm-10">
                    <select
                      className="form-select"
@@ -420,7 +422,7 @@ function ProfilePage() {
                      onChange={handleProfileInputChange}
                      required
                    >
-                     <option value="" disabled>Select a country...</option>
+                     <option value="" disabled>{t('profile.selectCountryPlaceholder')}</option>
                      {countries.length > 0 ? (
                        countries.map((country) => (
                          <option key={country.code} value={country.code.toLowerCase()}>
@@ -428,7 +430,7 @@ function ProfilePage() {
                          </option>
                        ))
                      ) : (
-                       <option value="" disabled>Loading countries...</option>
+                       <option value="" disabled>{t('profile.loadingCountries')}</option>
                      )}
                      {/* <option value="other">Other</option> */}
                    </select>
@@ -436,7 +438,7 @@ function ProfilePage() {
               </div>
               {/* Add Language Dropdown */}
               <div className="mb-3 row">
-                <label htmlFor="editLanguage" className="col-sm-2 col-form-label"><strong>Language:</strong></label>
+                <label htmlFor="editLanguage" className="col-sm-2 col-form-label"><strong>{t('profile.languageLabel')}:</strong></label>
                 <div className="col-sm-10">
                    <select
                      className="form-select"
@@ -445,7 +447,7 @@ function ProfilePage() {
                      value={editFormData.language}
                      onChange={handleProfileInputChange}
                    >
-                     <option value="" disabled>Select a language...</option>
+                     <option value="" disabled>{t('profile.selectLanguagePlaceholder')}</option>
                      {Object.entries(languageCodeToName).map(([code, name]) => (
                        <option key={code} value={code}>
                          {name}
@@ -455,18 +457,18 @@ function ProfilePage() {
                 </div>
               </div>
               <div className="d-flex justify-content-end">
-                 <button className="btn btn-secondary me-2" onClick={handleProfileCancelClick} disabled={isSavingProfile}>Cancel</button>
+                 <button className="btn btn-secondary me-2" onClick={handleProfileCancelClick} disabled={isSavingProfile}>{t('profile.cancelButton')}</button>
                  <button className="btn btn-primary" onClick={handleProfileSaveClick} disabled={isSavingProfile}>
-                   {isSavingProfile ? 'Saving...' : 'Save Changes'}
+                   {isSavingProfile ? t('profile.savingButton') : t('profile.saveChangesButton')}
                  </button>
               </div>
             </>
           ) : (
             <>
-              <p><strong>Name:</strong> {profile.naam || 'N/A'}</p>
-              <p><strong>Email:</strong> {profile.email || 'N/A'}</p>
-              <p><strong>Country:</strong> {displayCountryName}</p>
-              <p><strong>Preferred Language:</strong> {displayLanguageName}</p>
+              <p><strong>{t('profile.nameLabel')}:</strong> {profile.naam || t('profile.notAvailable')}</p>
+              <p><strong>{t('profile.emailLabel')}:</strong> {profile.email || t('profile.notAvailable')}</p>
+              <p><strong>{t('profile.countryLabel')}:</strong> {displayCountryName}</p>
+              <p><strong>{t('profile.languageLabel')}:</strong> {displayLanguageName}</p>
             </>
           )}
         </div>
@@ -475,11 +477,11 @@ function ProfilePage() {
       {/* <<< Section for User's Shops >>> */}
       <div className="card mt-4">
         <div className="card-header">
-          Your Locations
+          {t('profile.yourLocationsHeader')}
         </div>
         <div className="card-body">
           {loadingShops ? (
-            <p>Loading your locations...</p>
+            <p>{t('profile.loadingLocations')}</p>
           ) : userShops.length > 0 ? (
             <ul className="list-group list-group-flush">
               {userShops.map(shop => (
@@ -488,7 +490,7 @@ function ProfilePage() {
                     // <<< Edit Form >>>
                     <div>
                       <div className="mb-2">
-                        <label htmlFor={`editShopName-${shop._id}`} className="form-label form-label-sm">Name:</label>
+                        <label htmlFor={`editShopName-${shop._id}`} className="form-label form-label-sm">{t('profile.shopNameLabel')}:</label>
                         <input
                           type="text"
                           className="form-control form-control-sm"
@@ -499,7 +501,7 @@ function ProfilePage() {
                         />
                       </div>
                       <div className="mb-2">
-                         <label htmlFor={`editShopCategory-${shop._id}`} className="form-label form-label-sm">Category:</label>
+                         <label htmlFor={`editShopCategory-${shop._id}`} className="form-label form-label-sm">{t('profile.shopCategoryLabel')}:</label>
                          <select
                            className="form-select form-select-sm"
                            id={`editShopCategory-${shop._id}`}
@@ -507,14 +509,14 @@ function ProfilePage() {
                            value={editShopFormData.category}
                            onChange={handleShopInputChange}
                          >
-                           <option value="" disabled>Select Category...</option>
+                           <option value="" disabled>{t('profile.selectCategoryPlaceholder')}</option>
                            {availableCategories.map(cat => (
                              <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
                            ))}
                          </select>
                       </div>
                       <div className="mb-2">
-                         <label htmlFor={`editShopType-${shop._id}`} className="form-label form-label-sm">Sales Channel:</label>
+                         <label htmlFor={`editShopType-${shop._id}`} className="form-label form-label-sm">{t('profile.shopSalesChannelLabel')}:</label>
                          <select
                            className="form-select form-select-sm"
                            id={`editShopType-${shop._id}`}
@@ -522,15 +524,15 @@ function ProfilePage() {
                            value={editShopFormData.type}
                            onChange={handleShopInputChange}
                          >
-                           <option value="" disabled>Select Channel...</option>
-                           <option value="Offline">Offline</option>
-                           <option value="Online">Online</option>
-                           <option value="Offline & Online">Offline & Online</option>
+                           <option value="" disabled>{t('profile.selectChannelPlaceholder')}</option>
+                           <option value="Offline">{t('profile.salesChannelOffline')}</option>
+                           <option value="Online">{t('profile.salesChannelOnline')}</option>
+                           <option value="Offline & Online">{t('profile.salesChannelBoth')}</option>
                          </select>
                       </div>
                       {/* <<< Add Phone Input >>> */}
                       <div className="mb-2">
-                        <label htmlFor={`editShopPhone-${shop._id}`} className="form-label form-label-sm">Phone:</label>
+                        <label htmlFor={`editShopPhone-${shop._id}`} className="form-label form-label-sm">{t('profile.shopPhoneLabel')}:</label>
                         <input
                           type="tel" // Use tel type for phone numbers
                           className="form-control form-control-sm"
@@ -538,12 +540,12 @@ function ProfilePage() {
                           name="phone"
                           value={editShopFormData.phone}
                           onChange={handleShopInputChange}
-                          placeholder="(Optional)"
+                          placeholder={t('profile.optionalPlaceholder')}
                         />
                       </div>
                       {/* <<< Add Website Input >>> */}
                       <div className="mb-2">
-                        <label htmlFor={`editShopWebsite-${shop._id}`} className="form-label form-label-sm">Website:</label>
+                        <label htmlFor={`editShopWebsite-${shop._id}`} className="form-label form-label-sm">{t('profile.shopWebsiteLabel')}:</label>
                         <input
                           type="url" // Use url type for websites
                           className="form-control form-control-sm"
@@ -551,14 +553,14 @@ function ProfilePage() {
                           name="website"
                           value={editShopFormData.website}
                           onChange={handleShopInputChange}
-                          placeholder="(Optional) e.g., https://example.com"
+                          placeholder={t('profile.optionalWebsitePlaceholder')}
                         />
                       </div>
                       <div className="mt-2">
                         <button className="btn btn-sm btn-success me-2" onClick={() => handleShopSaveClick(shop._id)} disabled={isSavingShop}>
-                          {isSavingShop ? 'Saving...' : 'Save'}
+                          {isSavingShop ? t('profile.savingButton') : t('profile.saveButton')}
                         </button>
-                        <button className="btn btn-sm btn-secondary" onClick={handleShopCancelClick} disabled={isSavingShop}>Cancel</button>
+                        <button className="btn btn-sm btn-secondary" onClick={handleShopCancelClick} disabled={isSavingShop}>{t('profile.cancelButton')}</button>
                       </div>
                       {editShopError && editingShopId === shop._id && <p className="error text-danger small mt-1">{editShopError}</p>}
                     </div>
@@ -568,13 +570,13 @@ function ProfilePage() {
                       <div>
                         <strong>{shop.name}</strong><br />
                         <small className="text-muted">{shop.location}</small><br/>
-                        <small>Category: {shop.category || 'N/A'} | Sales Channel: {shop.type || 'N/A'}</small><br/>
-                        {shop.phone && <small>Phone: {shop.phone} | </small>}
-                        {shop.website && <small>Website: <a href={shop.website} target="_blank" rel="noopener noreferrer">{shop.website}</a></small>}
+                        <small>{t('profile.shopCategoryLabel')}: {shop.category || t('profile.notAvailable')} | {t('profile.shopSalesChannelLabel')}: {shop.type || t('profile.notAvailable')}</small><br/>
+                        {shop.phone && <small>{t('profile.shopPhoneLabel')}: {shop.phone} | </small>}
+                        {shop.website && <small><Trans i18nKey="profile.shopWebsiteDisplayLabel">Website: <a href={shop.website} target="_blank" rel="noopener noreferrer">{{website: shop.website}}</a></Trans></small>}
                       </div>
                       <div> {/* Wrap buttons */}
-                        <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleShopEditClick(shop)}>Edit</button>
-                        <button className="btn btn-sm btn-outline-danger" onClick={() => handleShopDeleteClick(shop._id, shop.name)}>Delete</button>
+                        <button className="btn btn-sm btn-outline-primary me-2" onClick={() => handleShopEditClick(shop)}>{t('profile.editButton')}</button>
+                        <button className="btn btn-sm btn-outline-danger" onClick={() => handleShopDeleteClick(shop._id, shop.name)}>{t('profile.deleteButton')}</button>
                       </div>
                     </div>
                   )}
@@ -582,7 +584,7 @@ function ProfilePage() {
               ))}
             </ul>
           ) : (
-            <p>You haven't added any locations yet.</p>
+            <p>{t('profile.noLocationsAdded')}</p>
           )}
         </div>
       </div>

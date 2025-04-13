@@ -1,4 +1,5 @@
-import React from "react";
+import React from 'react';
+import { useTranslation } from 'react-i18next'; // Import the hook
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 // MainPage is now imported within HomePageWrapper
 import AuthForm from "./components/AuthForm"; // Import the combined form
@@ -10,8 +11,11 @@ import WelcomePage from "./components/WelcomePage"; // Import WelcomePage
 import HomePageWrapper from "./components/HomePageWrapper"; // Import the wrapper
 import NotFoundPage from "./components/NotFoundPage"; // Import the 404 component
 function App() {
+  const { t } = useTranslation(); // Get the translation function
+
   return (
     <Router>
+      <h1>{t('welcome_message')}</h1> {/* Display the translated message */}
       <Routes>
         <Route path="/" element={<HomePageWrapper />} /> {/* Use wrapper for root */}
         <Route path="/register" element={<AuthForm />} /> {/* Use AuthForm */}

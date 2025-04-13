@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next'; // Import the hook
 import MainPage from './MainPage';
 import WelcomePage from './WelcomePage';
 
 function HomePageWrapper() {
+  const { t } = useTranslation(); // Get the translation function
   const [isLoggedIn, setIsLoggedIn] = useState(null); // null: checking, true: logged in, false: not logged in
   const [isLoading, setIsLoading] = useState(true);
 
@@ -34,7 +36,7 @@ function HomePageWrapper() {
 
   if (isLoading) {
     // Optional: Add a more sophisticated loading spinner/component
-    return <div className="container mt-4 text-center"><p>Loading...</p></div>;
+    return <div className="container mt-4 text-center"><p>{t('homeWrapper.loading')}</p></div>;
   }
 
   return isLoggedIn ? <MainPage /> : <WelcomePage />;

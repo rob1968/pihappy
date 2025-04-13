@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTranslation } from 'react-i18next'; // Import the hook
 
 // --- IMPORTANT SECURITY NOTE ---
 // This component now uses process.env.REACT_APP_GOOGLE_API_KEY directly
@@ -9,6 +10,7 @@ import React, { useState } from "react";
 // --- /IMPORTANT SECURITY NOTE ---
 
 function AddShopForm() {
+  const { t } = useTranslation(); // Get the translation function
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [location, setLocation] = useState("");
@@ -58,7 +60,7 @@ function AddShopForm() {
     const apiKey = process.env.REACT_APP_GOOGLE_API_KEY; // Get API key from environment
 
     if (!apiKey) {
-        setError("Geocoding API key is not configured in the frontend environment.");
+        setError(t('addShop.errorApiKeyMissing'));
         setIsSubmitting(false);
         return;
     }
@@ -77,13 +79,13 @@ function AddShopForm() {
             console.log(`Geocoding successful: Lat=${latitude}, Lng=${longitude}`);
         } else {
             console.error("Geocoding failed:", geocodeData.status, geocodeData.error_message);
-            setError(`Could not find coordinates for the address: ${location}. Status: ${geocodeData.status}`);
+            setError(t('addShop.errorGeocodingFailed', { location: location, status: geocodeData.status }));
             setIsSubmitting(false);
             return; // Stop submission if geocoding fails
         }
     } catch (geocodeError) {
         console.error("Error during geocoding fetch:", geocodeError);
-        setError("An error occurred while verifying the address.");
+        setError(t('addShop.errorGeocodingFetch'));
         setIsSubmitting(false);
         return; // Stop submission on fetch error
     }
@@ -106,7 +108,7 @@ function AddShopForm() {
 
       if (response.ok) {
         console.log("✅ Shop opgeslagen:", data);
-        setSuccessMessage(`Shop "${data.name}" added successfully!`);
+        setSuccessMessage(t('addShop.successMessage', { name: data.name }));
         // Clear the form
         setName("");
         setCategory("");
@@ -115,12 +117,12 @@ function AddShopForm() {
         setShopSuggestions([]);
       } else {
          console.error("❌ Fout bij opslaan:", data.error || response.statusText);
-         setError(data.error || `Failed to save shop (${response.status})`);
+         setError(data.error || t('addShop.errorSaveFailedStatus', { status: response.status }));
       }
 
     } catch (submitError) {
       console.error("❌ Fout bij opslaan:", submitError);
-      setError("An error occurred while submitting the form.");
+      setError(t('addShop.errorSubmitGeneric'));
     } finally {
         setIsSubmitting(false); // Re-enable button
     }
@@ -137,16 +139,16 @@ function AddShopForm() {
 
   return (
     <form onSubmit={handleSubmit}>
-      {error && <p style={{ color: 'red' }}>Error: {error}</p>}
+      {error && <p style={{ color: 'red' }}>{t('addShop.errorPrefix')}: {error}</p>}
       {successMessage && <p style={{ color: 'green' }}>{successMessage}</p>}
 
       {/* Name Input Field (Always Text) */}
       <div>
-        <label htmlFor="shop-name">Name:</label>
+        <label htmlFor="shop-name">{t('addShop.nameLabel')}:</label>
         <input
           id="shop-name"
           type="text"
-          placeholder="Name (Suggestions appear after entering address)"
+          placeholder={t('addShop.namePlaceholder')}
           value={name}
           onChange={e => setName(e.target.value)}
           autoComplete="off"
@@ -158,14 +160,14 @@ function AddShopForm() {
       {/* Separate Suggestion Dropdown (Conditional) */}
       {shopSuggestions.length > 0 && (
         <div style={{ marginTop: '5px', marginBottom: '10px' }}> {/* Add some spacing */}
-          <label htmlFor="shop-suggestions-select" style={{ marginRight: '5px' }}>Suggestions:</label>
+          <label htmlFor="shop-suggestions-select" style={{ marginRight: '5px' }}>{t('addShop.suggestionsLabel')}:</label>
           <select
             id="shop-suggestions-select"
             // Let the dropdown trigger the name change via onChange, no need for controlled value prop here
             onChange={handleSuggestionSelect}
             disabled={isSubmitting}
           >
-            <option value="">-- Select a suggested name --</option>
+            <option value="">{t('addShop.selectSuggestionPlaceholder')}</option>
             {shopSuggestions.map((suggestion, index) => (
               <option key={index} value={suggestion}>
                 {suggestion}
@@ -178,10 +180,10 @@ function AddShopForm() {
 
       {/* Other Form Fields */}
       <div>
-        <label htmlFor="shop-category">Category:</label>
+        <label htmlFor="shop-category">{t('addShop.categoryLabel')}:</label>
         <input
           id="shop-category"
-          placeholder="Category"
+          placeholder={t('addShop.categoryPlaceholder')}
           value={category}
           onChange={e => setCategory(e.target.value)}
           disabled={isSubmitting}
@@ -189,10 +191,10 @@ function AddShopForm() {
       </div>
 
       <div>
-        <label htmlFor="shop-location">Location:</label>
+        <label htmlFor="shop-location">{t('addShop.locationLabel')}:</label>
         <input
           id="shop-location"
-          placeholder="Location (Address)"
+          placeholder={t('addShop.locationPlaceholder')}
           value={location}
           onChange={e => setLocation(e.target.value)}
           onBlur={(e) => fetchShopSuggestions(e.target.value)}
@@ -202,10 +204,10 @@ function AddShopForm() {
       </div>
 
       <div>
-        <label htmlFor="shop-type">Type:</label>
+        <label htmlFor="shop-type">{t('addShop.typeLabel')}:</label>
         <input
           id="shop-type"
-          placeholder="Type (e.g., Supermarket, Cafe)"
+          placeholder={t('addShop.typePlaceholder')}
           value={type}
           onChange={e => setType(e.target.value)}
           disabled={isSubmitting}
@@ -213,7 +215,7 @@ function AddShopForm() {
       </div>
 
       <button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? 'Saving...' : 'Save Shop'}
+        {isSubmitting ? t('addShop.savingButton') : t('addShop.saveButton')}
       </button>
     </form>
   );
