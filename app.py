@@ -34,7 +34,7 @@ app.session_cookie_name = app.config.get('SESSION_COOKIE_NAME', 'session')
 CORS(app, supports_credentials=True) # Allow credentials (cookies)
 
 # 🛠️ Logging setup
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # 🧭 Locale selector (requires Flask-Babel >= 3.0.0)
@@ -115,4 +115,4 @@ def handle_exception(e):
 # 🏁 Start
 if __name__ == "__main__":
     # Disable reloader to potentially avoid WinError 10038 on Windows
-    app.run(debug=True, use_reloader=False)
+    app.run(use_reloader=False)
