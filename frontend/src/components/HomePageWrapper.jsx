@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next'; // Import the hook
 import MainPage from './MainPage';
 import WelcomePage from './WelcomePage';
+import MainMenu from './MainMenu'; // Import MainMenu
 
 function HomePageWrapper() {
   const { t } = useTranslation(); // Get the translation function
@@ -39,7 +40,12 @@ function HomePageWrapper() {
     return <div className="container mt-4 text-center"><p>{t('homeWrapper.loading')}</p></div>;
   }
 
-  return isLoggedIn ? <MainPage /> : <WelcomePage />;
+  return (
+    <>
+      <MainMenu /> {/* Render the MainMenu here */}
+      {isLoggedIn ? <MainPage /> : <WelcomePage />}
+    </>
+  );
 }
 
 export default HomePageWrapper;
