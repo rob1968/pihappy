@@ -1,0 +1,43 @@
+# Use an official Python runtime as a parent image
+FROM python:3.11-slim
+
+# Set environment variables
+# Prevents Python from writing pyc files to disc (equivalent to python -B)
+ENV PYTHONDONTWRITEBYTECODE 1
+# Prevents Python from buffering stdout and stderr (ensures logs appear immediately)
+ENV PYTHONUNBUFFERED 1
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Install system dependencies that might be needed by Python packages (if any)
+# Example: RUN apt-get update && apt-get install -y --no-install-recommends some-package && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user to run the application
+RUN addgroup --system app && adduser --system --group app
+
+# Install Python dependencies
+# Copy only requirements first to leverage Docker cache
+COPY requirements.txt .
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy the rest of the application code
+# Note: This assumes your Flask app and blueprints are in the root or specific subdirs
+# Adjust the COPY commands if your structure is different (e.g., copy specific blueprint dirs)
+COPY . .
+
+# Change ownership of the app directory to the non-root user
+RUN chown -R app:app /app
+
+# Switch to the non-root user
+USER app
+
+# Expose the port the app runs on (Gunicorn will bind to this inside the container)
+EXPOSE 5000
+
+# Define the command to run the application using Gunicorn
+# Bind to 0.0.0.0 to accept connections from outside the container (within the Docker network)
+# The number of workers can be adjusted based on expected load and container resources
+CMD ["gunicorn", "--workers", "3", "--bind", "0.0.0.0:5000", "app:app"]
+# Using app:app as wsgi.py is not present

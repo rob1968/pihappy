@@ -1,0 +1,39 @@
+# Stage 1: Build the React application
+FROM node:18-alpine AS builder
+
+# Set the working directory
+WORKDIR /app/frontend
+
+# Copy package.json and package-lock.json (or yarn.lock)
+COPY frontend/package.json frontend/package-lock.json* ./
+
+# Install dependencies
+# Using ci instead of install for potentially faster and more reliable builds in CI/CD
+RUN npm ci
+
+# Copy the rest of the frontend application source code
+# Ensure this path matches your project structure
+COPY frontend/ ./
+
+# Build the application
+# This assumes your build script is named 'build' in package.json
+RUN npm run build
+
+# Stage 2: Serve the built application with Nginx
+FROM nginx:1.25-alpine
+
+# Remove default Nginx configuration
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Copy custom Nginx configuration (we will create this next)
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Copy the built static files from the builder stage
+# Assumes the build output is in the 'build' directory
+COPY --from=builder /app/frontend/build /usr/share/nginx/html
+
+# Expose port 80
+EXPOSE 80
+
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]
