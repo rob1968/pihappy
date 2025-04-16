@@ -142,12 +142,12 @@ const AuthForm = () => {
       <div className="col-md-6 col-lg-5">
         <div className="card shadow-lg">
           <div className="card-body">
-            <h2 className="text-center">🔐 {t(isLoginMode ? 'auth.login' : 'auth.register')}</h2>
+            <h2 className="text-center">{t(isLoginMode ? 'auth.login' : 'auth.register')}</h2>
             <form onSubmit={handleSubmit}>
               {/* --- Fields for Both Modes --- */}
               <div className="mb-3">
                 <label htmlFor="email" className="form-label">
-                  📧 {t('auth.emailLabel')} <span className="text-danger">*</span>
+                  {t('auth.emailLabel')} <span className="text-danger">*</span>
                 </label>
                 <input
                   type="email"
@@ -163,7 +163,7 @@ const AuthForm = () => {
 
               <div className="mb-3">
                 <label htmlFor="password" className="form-label">
-                  🔑 {t('auth.passwordLabel')} <span className="text-danger">*</span>
+                  {t('auth.passwordLabel')} <span className="text-danger">*</span>
                 </label>
                 <input
                   type="password"
@@ -184,7 +184,7 @@ const AuthForm = () => {
                 <>
                   <div className="mb-3">
                     <label htmlFor="naam" className="form-label">
-                      👤 {t('auth.nameLabel')} <span className="text-danger">*</span>
+                      {t('auth.nameLabel')} <span className="text-danger">*</span>
                     </label>
                     <input
                       type="text"
@@ -200,7 +200,7 @@ const AuthForm = () => {
 
                   <div className="mb-3">
                     <label htmlFor="land" className="form-label">
-                      🌍 {t('auth.countryLabel')} <span className="text-danger">*</span>
+                      {t('auth.countryLabel')} <span className="text-danger">*</span>
                     </label>
                     <select
                       id="land"
@@ -210,7 +210,7 @@ const AuthForm = () => {
                       onChange={handleCountryChange} // <<< MODIFIED: Use new handler
                       required
                     >
-                      <option value="" disabled>🌐 {t('auth.selectCountryPlaceholder')}</option>
+                      <option value="" disabled>{t('auth.selectCountryPlaceholder')}</option>
                       {landen.map((land) => (
                         <option key={land.code} value={land.code.toLowerCase()}>
                           {land.naam}
@@ -224,7 +224,7 @@ const AuthForm = () => {
                   {/* --- Preferred Language Dropdown --- */}
                   <div className="mb-3">
                     <label htmlFor="language" className="form-label">
-                      🗣️ {t('auth.languageLabel')} <span className="text-danger">*</span>
+                      {t('auth.languageLabel')} <span className="text-danger">*</span>
                     </label>
                     <select
                       id="language"
@@ -234,7 +234,7 @@ const AuthForm = () => {
                       onChange={(e) => setGekozenTaal(e.target.value)}
                       required
                     >
-                      <option value="" disabled>🌐 {t('auth.selectLanguagePlaceholder')}</option>
+                      <option value="" disabled>{t('auth.selectLanguagePlaceholder')}</option>
                       {Object.entries({
                         // Note: Language names themselves might need translation if displayed elsewhere,
                         // but for the dropdown options, keeping them consistent might be okay.
@@ -257,7 +257,7 @@ const AuthForm = () => {
 
               {/* --- Submit Button --- */}
               <button type="submit" className="btn btn-primary w-100 mt-3">
-                ✅ {t(isLoginMode ? 'auth.loginButton' : 'auth.registerButton')}
+                {t(isLoginMode ? 'auth.loginButton' : 'auth.registerButton')}
               </button>
             </form>
 
