@@ -1,6 +1,6 @@
-from flask import request, jsonify, Blueprint, current_app, session # Add session here
+from flask import request, jsonify, Blueprint, current_app, session # Add session and current_app here
 from datetime import datetime # Import datetime
-# Delay importing db to avoid circular import
+# No longer need to import db from app
 # from app import db
 import logging
 import requests # For making API calls
@@ -58,8 +58,8 @@ def format_shop_for_frontend(doc):
 
 @shop_bp.route("/shops", methods=["GET"])
 def get_shops():
-    # Import db here, inside the function
-    from app import db
+    # Access db from the application context
+    db = current_app.db
     try:
         logging.debug("Received GET request at /shops endpoint")
         # Fetch all documents from the shops collection
@@ -95,8 +95,8 @@ def get_shops():
 @shop_bp.route("/shops", methods=["POST"])
 # Corrected import location
 def add_shop():
-    # Import db here, inside the function
-    from app import db
+    # Access db from the application context
+    db = current_app.db
     logging.debug("Received POST request at /shops endpoint")
 
     # Check if user is logged in
@@ -313,8 +313,8 @@ def shop_home():
 
 @shop_bp.route("/categories", methods=["GET"])
 def get_categories():
-    # Import db here, inside the function
-    from app import db
+    # Access db from the application context
+    db = current_app.db
     try:
         logging.debug("Received GET request at /categories endpoint")
         # Fetch distinct category names from the 'shops_category' collection
@@ -364,8 +364,8 @@ def get_user_shops():
     logging.debug(f"Fetching shops for user ID: {user_id}")
 
     try:
-        # Import db here, inside the function
-        from app import db
+        # Access db from the application context
+        db = current_app.db
         # Find shops where the 'userId' field matches the logged-in user's ObjectId
         user_shops_cursor = db.shops.find({"userId": user_object_id})
         user_shops_list = list(user_shops_cursor)
@@ -412,8 +412,8 @@ def update_shop(shop_id):
     logging.debug(f"Attempting to update shop {shop_id} by user {user_id}")
 
     try:
-        # Import db here, inside the function
-        from app import db
+        # Access db from the application context
+        db = current_app.db
 
         # First, verify the shop exists and belongs to the current user
         shop_to_update = db.shops.find_one({"_id": shop_object_id, "userId": user_object_id})
@@ -495,9 +495,9 @@ def delete_shop(shop_id):
     logging.debug(f"Attempting to delete shop {shop_id} by user {user_id}")
  
     try:
-        # Import db here, inside the function
-        from app import db
- 
+        # Access db from the application context
+        db = current_app.db
+
         # Find the shop to verify ownership before deleting
         shop_to_delete = db.shops.find_one({"_id": shop_object_id, "userId": user_object_id})
  

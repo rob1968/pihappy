@@ -1,14 +1,13 @@
-from flask import Blueprint, current_app as app, request, session, jsonify
+from flask import Blueprint, current_app, request, session, jsonify # Use current_app directly
 import logging # Add logging
 import os
 import re
 # import requests # Already imported below if needed
-import openai
+from openai import OpenAI # Import the new client class
 import requests
 from datetime import datetime, timedelta # Import timedelta
 from collections import Counter
-from pymongo import MongoClient
-from dotenv import load_dotenv
+# Removed MongoClient and load_dotenv as DB connection is handled by app
 from bson import ObjectId  # Import to handle ObjectId serialization
 from blueprints.utils.locale import get_country_language # Import the function
 
@@ -19,35 +18,33 @@ logger = logging.getLogger(__name__) # Add logger instance
 # Ensure logging is configured (ideally in app.py)
 # logging.basicConfig(level=logging.DEBUG)
 
-# 🌐 Mongo Setup
-load_dotenv()
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
-client = MongoClient(MONGO_URI)
-db = client["pihappy"]
-users_collection = db["users"] # Access users collection
-community_input_collection = db["community_input"]
-community_analysis_collection = db["community_analysis"] # Collection for storing results
+# 🌐 Mongo Setup - REMOVED module-level connection. Will use current_app.db
 
 # 🛠️ Mongo replacements
 def laad_community_input():
+    """Loads community input using the application's DB connection."""
     try:
+        community_input_collection = current_app.db["community_input"]
         # Convert ObjectId to string for JSON serialization
         return [
             {**doc, "_id": str(doc["_id"])} for doc in community_input_collection.find()
         ]
     except Exception as e:
-        app.logger.error(f"Error loading community input: {e}")
+        # Use current_app's logger
+        current_app.logger.error(f"Error loading community input: {e}")
         return []
 
 # def sla_community_input_op(data): # This function seems unused, commenting out
-#     community_input_collection.delete_many({})
-#     community_input_collection.insert_many(data)
+#     # If re-enabled, use current_app.db["community_input"]
+#     pass
 
 
 @community_bp.route('/landen', methods=['GET'])
 def haal_landen_op():
+    """Fetches countries using the application's DB connection."""
     try:
-        landen_cursor = db.countries.find({}, {"_id": 0})  # Gebruik collectie 'countries'
+        countries_collection = current_app.db["countries"]
+        landen_cursor = countries_collection.find({}, {"_id": 0})  # Use collection from current_app.db
         landen_lijst = [
             {
                 "naam": land["name"],
@@ -98,6 +95,7 @@ def send_community_input():
     # --- Cooldown Check ---
     try:
         user_object_id = ObjectId(user_id)
+        users_collection = current_app.db["users"]
         user_doc = users_collection.find_one({"_id": user_object_id})
         if user_doc and "last_community_input_time" in user_doc:
             last_post_time = user_doc["last_community_input_time"]
@@ -127,6 +125,7 @@ def send_community_input():
 
     logger.debug(f"Attempting to insert into community_input_collection: {nieuwe_input}")
     try:
+        community_input_collection = current_app.db["community_input"]
         result = community_input_collection.insert_one(nieuwe_input)
         if result.inserted_id:
             logger.info(f"Successfully inserted community input with ID: {result.inserted_id}")
@@ -135,6 +134,7 @@ def send_community_input():
 
             # --- Update User's Last Post Time ---
             try:
+                users_collection = current_app.db["users"]
                 users_collection.update_one(
                     {"_id": user_object_id},
                     {"$set": {"last_community_input_time": nieuwe_input["tijd"]}}
@@ -147,6 +147,7 @@ def send_community_input():
 
             # --- Trigger Analysis Check ---
             try:
+                community_input_collection = current_app.db["community_input"]
                 input_count = community_input_collection.count_documents({})
                 logger.info(f"Total community inputs after insert: {input_count}")
                 if input_count > 0 and input_count % 2 == 0:
@@ -199,15 +200,27 @@ Final Instruction: Ensure the entire summary response is ONLY in the requested l
     logger.debug(f"perform_community_analysis: Sending prompt to OpenAI:\nSystem: {system_message}\nUser: {prompt}")
 
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
+        # Initialize OpenAI client with API key from config
+        api_key = current_app.config.get('OPENAI_API_KEY')
+        if not api_key:
+            logger.error("OpenAI API key not found in Flask app config for community analysis.")
+            # Don't return here, just log the error, as analysis might proceed without AI
+            ai_feedback = "AI analysis skipped: API key not configured."
+        else:
+            client = OpenAI(api_key=api_key) # Create client instance
+            logger.debug("OpenAI API key set for community analysis request.")
+
+            # Use the new client method
+            response = client.chat.completions.create(
+                model="gpt-4", # Ensure this model is still appropriate/available
+                messages=[
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": prompt}
-            ]
-        )
-        ai_feedback = response["choices"][0]["message"]["content"]
-        logger.info("perform_community_analysis: OpenAI analysis successful.")
+                ]
+            )
+            # Access response content using the new object structure
+            ai_feedback = response.choices[0].message.content
+            logger.info("perform_community_analysis: OpenAI analysis successful.")
 
         # --- Store Analysis Result ---
         analysis_result = {
@@ -218,6 +231,7 @@ Final Instruction: Ensure the entire summary response is ONLY in the requested l
         }
         # Update a single document (e.g., with a fixed ID) or insert new ones.
         # Using update_one with upsert=True is simple for storing only the latest.
+        community_analysis_collection = current_app.db["community_analysis"]
         community_analysis_collection.update_one(
             {"_id": "latest_analysis"}, # Fixed ID for the latest analysis document
             {"$set": analysis_result},
@@ -307,6 +321,7 @@ def analyseer_community_input():
     """Fetches the latest stored community analysis result."""
     logger.debug("Received request for /community_input/analyse (fetching latest stored result)")
     try:
+        community_analysis_collection = current_app.db["community_analysis"]
         latest_analysis = community_analysis_collection.find_one({"_id": "latest_analysis"})
         if latest_analysis and "ai_feedback" in latest_analysis:
             logger.info("Found latest analysis result.")
@@ -382,6 +397,7 @@ def community_stats_by_country():
             }
         ]
 
+        community_input_collection = current_app.db["community_input"]
         results = list(community_input_collection.aggregate(pipeline))
 
         # Convert list of {country: 'XX', count: N} to the desired { 'XX': N } format

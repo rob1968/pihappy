@@ -1,7 +1,7 @@
-from flask import Blueprint, request, session, jsonify
+from flask import Blueprint, request, session, jsonify, current_app # Import current_app
 import logging # Add logging
 from datetime import datetime
-import openai
+from openai import OpenAI # Import the new client class
 from blueprints.utils.geo import vind_winkel_in_buurt
 from blueprints.utils.locale import get_country_language # Import the function
 from pymongo import MongoClient
@@ -138,17 +138,30 @@ def chat():
 
     logger.debug("Chat: Sending request to OpenAI...")
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[{"role": "system", "content": system_prompt}] + messages_for_api # Send modified history
+        # Initialize OpenAI client with API key from config
+        api_key = current_app.config.get('OPENAI_API_KEY')
+        if not api_key:
+            logger.error("OpenAI API key not found in Flask app config for chat.")
+            return jsonify({"antwoord": "⚠️ AI-fout: API-sleutel niet geconfigureerd."})
+
+        client = OpenAI(api_key=api_key) # Create client instance
+
+        # Use the new client method
+        response = client.chat.completions.create(
+            model="gpt-4", # Ensure this model is still appropriate/available
+            messages=[{"role": "system", "content": system_prompt}] + messages_for_api
         )
-        antwoord = response["choices"][0]["message"]["content"]
-        logger.debug(f"Chat: Received response from OpenAI for user {gebruiker_id}") # Add success log
-    except Exception as e:
+        # Access response content using the new object structure
+        antwoord = response.choices[0].message.content
+        logger.info(f"Chat: Successfully received response content from OpenAI for user {gebruiker_id}") # Changed to INFO for visibility
+    except Exception as e: # Catch specific OpenAI errors if needed later
         # Log the specific error before returning
-        logger.error(f"OpenAI API Error for user {gebruiker_id}: {e}", exc_info=True) # Add logging
-        # Return the error JSON as before
-        return jsonify({"antwoord": f"⚠️ AI-fout: {str(e)}"})
+        logger.error(f"OpenAI API Error for user {gebruiker_id}: {e}", exc_info=True)
+        # Return a distinct error message and ensure a non-200 status code
+        return jsonify({"status": "error", "message": f"AI Error: {str(e)}"}), 500
+
+    # === Add log point after successful OpenAI call ===
+    logger.info(f"Chat: Preparing successful response data for user {gebruiker_id}")
 
     assistant_tijd = datetime.utcnow().isoformat() + "Z" # Generate timestamp ONCE
     assistant_message_data = {
@@ -202,6 +215,8 @@ def chat():
         # Return 500 error if saving fails
         return jsonify({"status": "error", "message": "Failed to save chat history."}), 500
 
+    # === Add log point just before final successful return ===
+    logger.info(f"Chat: Returning successful response with messages for user {gebruiker_id}")
     return jsonify({
         "antwoord": antwoord,
         "extra": extra_bericht,

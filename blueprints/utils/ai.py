@@ -1,12 +1,12 @@
 # Content for blueprints/utils/ai.py
 
 import os
-import openai
+from openai import OpenAI # Import the new client class
 import logging
 from nltk.sentiment import SentimentIntensityAnalyzer
 from nltk import download
 from dotenv import load_dotenv
-from flask import session # Added import for session used in bepaal_taal
+from flask import session, current_app # Added import for session used in bepaal_taal AND current_app
 
 # Ensure VADER is downloaded
 try:
@@ -22,14 +22,9 @@ except Exception as sia_init_err:
     logging.error(f"Failed to initialize SentimentIntensityAnalyzer: {sia_init_err}", exc_info=True)
     sia = None # Set sia to None if initialization fails
 
-load_dotenv()
-# Load and check OpenAI API key
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    logging.critical("OPENAI_API_KEY environment variable not set. AI features will likely fail.")
-else:
-    openai.api_key = OPENAI_API_KEY
-    logging.info("OpenAI API key loaded.")
+load_dotenv() # Keep load_dotenv here for potential other uses, but don't load the key globally for openai
+
+# REMOVED Module-level OpenAI API key loading. Will load inside the function.
 
 # Get logger instance for this module
 logger = logging.getLogger(__name__) # Moved logger definition up
@@ -232,16 +227,28 @@ def genereer_ai_feedback(entry, stemming, sentiment, gebruiker_info):
 
     logger.debug(f"Sending prompt to OpenAI:\nSystem: {system_message}\nUser: {prompt}") # Log full prompt details
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4o",
+        # Load API key from app config right before the call
+        api_key = current_app.config.get('OPENAI_API_KEY')
+        if not api_key:
+            logger.error("OpenAI API key not found in Flask app config.")
+            return "⚠️ AI-feedback kon niet worden opgehaald: API-sleutel niet geconfigureerd."
+        # openai.api_key = api_key # No longer need to set global key
+        logger.debug("OpenAI API key retrieved for this request.") # Confirm key is retrieved
+
+        client = OpenAI(api_key=api_key) # Create client instance
+
+        # Use the new client method
+        response = client.chat.completions.create(
+            model="gpt-4o", # Consider making model configurable too
             messages=[
                 {"role": "system", "content": system_message}, # Use language-specific system message
                 {"role": "user", "content": prompt}
             ]
         )
-        ai_feedback = response["choices"][0]["message"]["content"]
+        # Access response content using the new object structure
+        ai_feedback = response.choices[0].message.content
         return ai_feedback
-    except openai.error.OpenAIError as e:
+    except Exception as e: # Catch specific OpenAI errors if needed later
         # Use logger instead of print
         logger.error(f"OpenAI API Error in genereer_ai_feedback: {e}", exc_info=True)
         return f"⚠️ AI-feedback kon niet worden opgehaald: {str(e)}"

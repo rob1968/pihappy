@@ -21,21 +21,21 @@ const MoodVotingForm = ({ isVotingAllowed, onMoodSubmit }) => {
       <div className="mood-columns">
         {/* Positive */}
         <div className="mood-column">
-          <div className="mood-group-label">😊 {t('moodVoting.positiveGroup')}</div>
+          <div className="mood-group-label"> {t('moodVoting.positiveGroup')}</div>
           <MoodButton moodKey="Happy" moodText={t('moodVoting.moodHappy')} emoji="😊" onMoodSubmit={onMoodSubmit} />
           <MoodButton moodKey="Excited" moodText={t('moodVoting.moodExcited')} emoji="🤩" onMoodSubmit={onMoodSubmit} />
           <MoodButton moodKey="Grateful" moodText={t('moodVoting.moodGrateful')} emoji="🙏" onMoodSubmit={onMoodSubmit} />
         </div>
         {/* Negative */}
         <div className="mood-column">
-          <div className="mood-group-label">😔 {t('moodVoting.negativeGroup')}</div>
+          <div className="mood-group-label"> {t('moodVoting.negativeGroup')}</div>
           <MoodButton moodKey="Sad" moodText={t('moodVoting.moodSad')} emoji="😔" onMoodSubmit={onMoodSubmit} />
           <MoodButton moodKey="Stressed" moodText={t('moodVoting.moodStressed')} emoji="😰" onMoodSubmit={onMoodSubmit} />
           <MoodButton moodKey="Sick" moodText={t('moodVoting.moodSick')} emoji="🤒" onMoodSubmit={onMoodSubmit} />
         </div>
         {/* Neutral */}
         <div className="mood-column">
-          <div className="mood-group-label">😐 {t('moodVoting.neutralGroup')}</div>
+          <div className="mood-group-label"> {t('moodVoting.neutralGroup')}</div>
           <MoodButton moodKey="Neutral" moodText={t('moodVoting.moodNeutral')} emoji="😐" onMoodSubmit={onMoodSubmit} />
           <MoodButton moodKey="Surprised" moodText={t('moodVoting.moodSurprised')} emoji="😲" onMoodSubmit={onMoodSubmit} />
           <MoodButton moodKey="Reflective" moodText={t('moodVoting.moodReflective')} emoji="🤔" onMoodSubmit={onMoodSubmit} />

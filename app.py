@@ -25,6 +25,7 @@ db = client["pihappy"]
 # 🚀 Flask app setup
 app = Flask(__name__)
 app.config.from_object(DevConfig)
+app.db = db # Attach db instance to the app object
 app.register_blueprint(geo_bp)
 
 # Fix session cookie name assignment
@@ -58,22 +59,28 @@ def inject_globals():
     # Removed redundant import of flask_babel
     return dict(_=_, get_locale=get_locale)
 
-# 🧩 Blueprints
-from blueprints.auth.routes import auth_bp
-from blueprints.journal.routes import journal_bp
-from blueprints.chat.routes import chat_bp
-from blueprints.community.routes import community_bp
-from blueprints.winkels.routes import winkels_bp
+# 🧩 Blueprints - Import and Register
+# Import blueprints just before registering them to avoid potential circular import issues
+
 from blueprints.shop.routes import shop_bp
-from blueprints.tts.routes import tts_bp # Import the new TTS blueprint
-# Register blueprints with /api prefix for clarity and separation
-# Assuming shop_bp, community_bp, winkels_bp also contain API routes. Adjust if not.
 app.register_blueprint(shop_bp, url_prefix='/api')
+
+from blueprints.auth.routes import auth_bp
 app.register_blueprint(auth_bp, url_prefix='/api') # Handles /api/profile, /api/login etc.
+
+from blueprints.journal.routes import journal_bp
 app.register_blueprint(journal_bp, url_prefix='/api') # Handles /api/, /api/nieuw
+
+from blueprints.chat.routes import chat_bp
 app.register_blueprint(chat_bp, url_prefix='/api') # Handles /api/chat, /api/chat_geschiedenis etc.
+
+from blueprints.community.routes import community_bp
 app.register_blueprint(community_bp, url_prefix='/api')
+
+from blueprints.winkels.routes import winkels_bp
 app.register_blueprint(winkels_bp, url_prefix='/api')
+
+from blueprints.tts.routes import tts_bp # Import the new TTS blueprint
 app.register_blueprint(tts_bp, url_prefix='/api') # Handles /api/tts/synthesize
 # ❌ Error handlers
 # Removed 404 handler - React Router handles this now.
