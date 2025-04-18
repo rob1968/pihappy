@@ -246,15 +246,16 @@ const MainPage = () => {
                     ))}
                 </div>
             )}
-
-            {/* Render the MainMenu component */}
-            <MainMenu />
-
+ 
+            {/* MainMenu removed - Rendered by HomePageWrapper */}
+ 
             <h1>{t('mainPage.title')}</h1> {/* Updated heading */}
 
             {/* Last Mood Display */}
             {laatsteStemming && (
                 <div style={{ fontSize: '32px', fontWeight: 'bold', marginTop: '20px', color: '#28a745' }}>
+                    {/* DEBUG: Log the value being passed to translation */}
+                    {console.log("DEBUG: laatsteStemming value:", laatsteStemming)}
                     {t('mainPage.feelingToday', { mood: laatsteStemming })}
                 </div>
             )}

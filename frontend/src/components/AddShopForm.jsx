@@ -181,13 +181,38 @@ function AddShopForm() {
       {/* Other Form Fields */}
       <div>
         <label htmlFor="shop-category">{t('addShop.categoryLabel')}:</label>
-        <input
+        <select
           id="shop-category"
-          placeholder={t('addShop.categoryPlaceholder')}
           value={category}
           onChange={e => setCategory(e.target.value)}
           disabled={isSubmitting}
-        />
+          required // Add required if a category must be selected
+        >
+          <option value="">{t('addShop.selectCategoryPlaceholder', 'Select a category...')}</option>
+          {[
+            "Accommodation",
+            "Automotive",
+            "Construction, Interior, Real Estate",
+            "Fashion, Accessories",
+            "Food Service, Cafe, Restaurant, Bar",
+            "Food, Health Foods",
+            "Fortune Telling, Naming, Tarot",
+            "Home Appliances, Mobile Phones",
+            "Legal and Administrative Services",
+            "Manufacturing",
+            "Medical",
+            "Office Equipment",
+            "Others",
+            "PC, Notebooks, Games",
+            "Pet-related",
+            "Skin, Hair, Beauty, Cosmetics",
+            "Sports, Hobbies, Health",
+          ].sort().map((cat) => (
+            <option key={cat} value={cat}>
+              {cat}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div>

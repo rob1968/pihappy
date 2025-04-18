@@ -5,6 +5,10 @@
   padding: 0;
 }
 
+button, input, select, textarea {
+  padding: initial; /* Restore default padding for form elements and buttons */
+}
+
 body {
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; /* Common clean sans-serif */
   background-color: #f8f8f8; /* Lighter background */

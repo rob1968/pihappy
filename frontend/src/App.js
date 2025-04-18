@@ -15,7 +15,7 @@ function App() {
 
   return (
     <Router>
-      <h1>{t('welcome_message')}</h1> {/* Display the translated message */}
+      {/* Removed global h1 - Titles should be handled by individual page components */}
       <Routes>
         <Route path="/" element={<HomePageWrapper />} /> {/* Use wrapper for root */}
         <Route path="/register" element={<AuthForm />} /> {/* Use AuthForm */}

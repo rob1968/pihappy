@@ -324,7 +324,7 @@ def get_categories():
         logging.debug(f"Available collections: {collection_names}")
 
         if 'shops_category' in collection_names:
-            logging.info("Attempting to fetch distinct 'description' values from 'shops_category' collection.")
+            logging.info("Attempting to fetch distinct 'description' values from 'egory' collection.")
             categories = db.shops_category.distinct("description")
             logging.debug(f"Distinct 'description' values found in 'shops_category': {categories}")
         else:

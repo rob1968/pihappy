@@ -25,7 +25,6 @@ function Pilocations() {
   const [map, setMap] = useState(null);
   const [error, setError] = useState(null); // For map loading errors
   const [loading, setLoading] = useState(true); // For map data loading
-  const [availableCategories, setAvailableCategories] = useState([]); // State for categories dropdown
   const [mapCenter, setMapCenter] = useState(null); // <<< Use state for current center
 
   // State for the "Add Shop" form
@@ -140,22 +139,26 @@ function Pilocations() {
     setSelectedWinkel(null); // Reset selected marker on filter change
   }, [selectedCategory, selectedSalesChannel, winkels]); // <<< Add selectedSalesChannel dependency
 
-  // Fetch categories for the dropdown
-  useEffect(() => {
-    fetch('/api/categories', { credentials: 'include' })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        setAvailableCategories(data);
-      })
-      .catch(err => {
-        console.error("Error fetching categories:", err);
-      });
-  }, []);
+  // Define the fixed category list
+  const shopCategories = [
+    "Accommodation",
+    "Automotive",
+    "Construction, Interior, Real Estate",
+    "Fashion, Accessories",
+    "Food Service, Cafe, Restaurant, Bar",
+    "Food, Health Foods",
+    "Fortune Telling, Naming, Tarot",
+    "Home Appliances, Mobile Phones",
+    "Legal and Administrative Services",
+    "Manufacturing",
+    "Medical",
+    "Office Equipment",
+    "Others",
+    "PC, Notebooks, Games",
+    "Pet-related",
+    "Skin, Hair, Beauty, Cosmetics",
+    "Sports, Hobbies, Health",
+  ].sort();
 
   const handleCategoryChange = (event) => {
     setSelectedCategory(event.target.value);
@@ -496,9 +499,9 @@ function Pilocations() {
               <label htmlFor="category-filter">{t('pilocations.categoryFilterLabel')}:</label>
               <select id="category-filter" className="form-select form-select-sm" value={selectedCategory} onChange={handleCategoryChange}>
                 <option value="all">{t('pilocations.filterAll')}</option>
-                {availableCategories.map(category => (
+                {shopCategories.map(category => (
                   <option key={category} value={category}>
-                    {category.charAt(0).toUpperCase() + category.slice(1)}
+                    {category} {/* Use the category name directly */}
                   </option>
                 ))}
               </select>
@@ -664,9 +667,9 @@ function Pilocations() {
                  <label htmlFor="newShopCategory" className="form-label">{t('pilocations.addFormCategoryLabel')} *</label>
                  <select id="newShopCategory" className="form-select" value={newShopCategory} onChange={(e) => setNewShopCategory(e.target.value)} required disabled={addShopLoading}>
                    <option value="" disabled>{t('pilocations.addFormSelectCategoryPlaceholder')}</option>
-                   {availableCategories.map(category => (
+                   {shopCategories.map(category => (
                      <option key={category} value={category}>
-                       {category.charAt(0).toUpperCase() + category.slice(1)}
+                       {category} {/* Use the category name directly */}
                      </option>
                    ))}
                  </select>
