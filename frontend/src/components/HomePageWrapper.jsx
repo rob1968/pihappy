@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // Removed useCallback
 import { useTranslation } from 'react-i18next'; // Import the hook
 import MainPage from './MainPage';
 import WelcomePage from './WelcomePage';
@@ -34,6 +34,9 @@ function HomePageWrapper() {
 
     checkAuthStatus();
   }, []); // Empty dependency array means this runs once on mount
+
+  // --- Pi Network Authentication REMOVED ---
+
 
   if (isLoading) {
     // Optional: Add a more sophisticated loading spinner/component

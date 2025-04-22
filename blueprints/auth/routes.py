@@ -376,3 +376,6 @@ def update_profile(user_id=None):
     except Exception as e:
         logging.error(f"Error updating profile for user {target_user_id_str}: {e}", exc_info=True)
         return jsonify({"error": "Failed to update profile due to server error"}), 500
+
+
+# --- Pi Network Login Verification REMOVED ---
