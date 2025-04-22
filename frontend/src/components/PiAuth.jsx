@@ -7,21 +7,27 @@ function PiAuth() {
   const navigate = useNavigate(); // Hook for navigation
 
   useEffect(() => {
+    console.log("[PiAuth] Component mounted."); // Log component mount
+
     // Ensure Pi SDK is loaded before attempting to use it
     if (typeof window.Pi === 'undefined') {
-      setError('Pi SDK not loaded. Please ensure you are in the Pi Browser.');
-      setStatus('Error');
+      console.error("[PiAuth] Pi SDK (window.Pi) is undefined. SDK script likely failed to load.");
+      setError('Pi SDK not loaded. Please ensure you are in the Pi Browser and the SDK script can load.');
+      setStatus('Error: SDK Load Failed');
       return;
+    } else {
+      console.log("[PiAuth] Pi SDK (window.Pi) is loaded:", window.Pi);
     }
 
     setStatus('Authenticating with Pi Network...');
+    console.log("[PiAuth] Attempting Pi.authenticate...");
 
     const scopes = ['payments', 'username']; // Request username scope as well
     // const scopes = ['payments']; // Define the required scopes
 
     // Callback for incomplete payments (using fetch instead of $.post)
     function onIncompletePaymentFound(payment) {
-      console.log('Incomplete payment found:', payment);
+      console.log('[PiAuth] Incomplete payment found:', payment);
       setStatus('Handling incomplete payment...');
       const paymentId = payment.identifier;
       const txid = payment.transaction.txid;
@@ -40,17 +46,17 @@ function PiAuth() {
       })
       .then(response => {
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error(`[PiAuth] HTTP error processing incomplete payment! status: ${response.status}`);
         }
         return response.json();
        })
       .then(data => {
-        console.log('Incomplete payment processed:', data);
+        console.log('[PiAuth] Incomplete payment processed:', data);
         // Handle response - maybe navigate or update status
         setStatus('Incomplete payment handled.');
       })
       .catch(err => {
-        console.error('Error processing incomplete payment:', err);
+        console.error('[PiAuth] Error processing incomplete payment:', err);
         setError(`Failed to process incomplete payment: ${err.message}`);
         setStatus('Error');
       });
@@ -59,7 +65,7 @@ function PiAuth() {
     // Authenticate the user
     window.Pi.authenticate(scopes, onIncompletePaymentFound)
       .then(auth => {
-        console.log('Pi Authentication successful:', auth);
+        console.log('[PiAuth] Pi Authentication successful (frontend):', auth);
         setStatus('Authentication successful! Verifying with server...');
 
         // Send the auth object (auth.accessToken, auth.user) to your backend
@@ -74,32 +80,32 @@ function PiAuth() {
            if (!response.ok) {
              // Attempt to read error message from backend if available
              return response.json().then(errData => {
-               throw new Error(errData.message || `Server error: ${response.status}`);
+               throw new Error(errData.message || `[PiAuth] Server error verifying auth: ${response.status}`);
              }).catch(() => {
                // Fallback if response is not JSON or reading fails
-               throw new Error(`Server error: ${response.status}`);
+               throw new Error(`[PiAuth] Server error verifying auth: ${response.status}`);
              });
            }
            return response.json();
          })
         .then(data => {
           if (data.status === 'success') {
-            console.log('Backend verification successful:', data);
+            console.log('[PiAuth] Backend verification successful:', data);
             setStatus('Verification successful! Redirecting...');
             // Backend should have set the session cookie
             navigate('/'); // Redirect to home page after successful backend verification
           } else {
-            throw new Error(data.message || 'Backend verification failed.');
+            throw new Error(data.message || '[PiAuth] Backend verification failed.');
           }
         })
         .catch(err => {
-          console.error('Backend verification failed:', err);
+          console.error('[PiAuth] Backend verification failed:', err);
           setError(`Backend verification failed: ${err.message}`);
           setStatus('Error');
         });
       })
       .catch(err => {
-        console.error('Pi Authentication failed:', err);
+        console.error('[PiAuth] Pi.authenticate call failed:', err);
         // Handle specific Pi Network error codes if needed
         setError(`Pi Authentication failed: ${err.message || err}`);
         setStatus('Error');
@@ -112,7 +118,7 @@ function PiAuth() {
       <h2>Pi Network Authentication</h2>
       <p>Status: {status}</p>
       {error && <p style={{ color: 'red' }}>Error: {error}</p>}
-      {status.startsWith('Authenticating') || status.startsWith('Handling') || status.startsWith('Verification') ? (
+      {status.startsWith('Authenticating') || status.startsWith('Handling') || status.startsWith('Verification') || status.startsWith('Initializing') ? (
         <p>Please follow the prompts in the Pi Browser window...</p>
         // You might show a loading indicator here
       ) : null}
