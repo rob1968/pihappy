@@ -2,7 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next'; // Import the hook
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 // MainPage is now imported within HomePageWrapper
-import AuthForm from "./components/AuthForm"; // Import the combined form
+import AuthRouter from "./components/AuthRouter"; // Import the new router
 import AddShopForm from "./components/AddShopForm"; // 👈 toevoegen
 import CommunityPage from "./components/CommunityPage"; // Import CommunityPage
 import Pilocations from "./components/Pilocations"; // Import Pilocations map page
@@ -18,8 +18,8 @@ function App() {
       {/* Removed global h1 - Titles should be handled by individual page components */}
       <Routes>
         <Route path="/" element={<HomePageWrapper />} /> {/* Use wrapper for root */}
-        <Route path="/register" element={<AuthForm />} /> {/* Use AuthForm */}
-        <Route path="/login" element={<AuthForm />} /> {/* Use AuthForm */}
+        <Route path="/register" element={<AuthRouter />} /> {/* Use AuthRouter */}
+        <Route path="/login" element={<AuthRouter />} /> {/* Use AuthRouter */}
         <Route path="/AddShopForm" element={<AddShopForm />} /> {/* ✅ hier! */}
         <Route path="/community" element={<CommunityPage />} /> {/* Add route for CommunityPage */}
         <Route path="/pilocations" element={<Pilocations />} /> {/* Add route for Pilocations map */}

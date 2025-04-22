@@ -14,6 +14,7 @@ class Config:
     ]
     GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    PI_API_KEY = os.getenv("PI_API_KEY") # Add Pi Network API Key
 class DevConfig(Config):
     DEBUG = True
 

@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, session
+from flask import Blueprint, jsonify, request, session, current_app # Add current_app
 from pymongo import MongoClient
 from bson.objectid import ObjectId # Ensure ObjectId is imported ONCE
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -378,4 +378,174 @@ def update_profile(user_id=None):
         return jsonify({"error": "Failed to update profile due to server error"}), 500
 
 
-# --- Pi Network Login Verification REMOVED ---
+# --- Pi Network Authentication Verification ---
+@auth_bp.route("/pi_auth_verify", methods=["POST"])
+def pi_auth_verify():
+    """
+    Verifies the Pi authentication data received from the frontend.
+    Calls the Pi backend API to validate the access token.
+    Creates or finds the user in the local DB and sets the session.
+    """
+    try:
+        pi_auth_data = request.json
+        access_token = pi_auth_data.get("accessToken")
+        pi_user_info = pi_auth_data.get("user") # Contains uid, username
+
+        if not access_token or not pi_user_info:
+            logging.warning("Pi Auth Verify: Missing access token or user info in request.")
+            return jsonify({"status": "error", "message": "Incomplete Pi authentication data received."}), 400
+
+        pi_api_key = current_app.config.get("PI_API_KEY")
+        if not pi_api_key:
+            logging.error("Pi Auth Verify: PI_API_KEY is not configured in the server.")
+            return jsonify({"status": "error", "message": "Server configuration error (Missing API Key)."}), 500
+
+        # --- Verify Access Token with Pi Backend ---
+        pi_verify_url = "https://api.minepi.com/v2/me" # Standard Pi API endpoint
+        headers = {
+            'Authorization': f"Bearer {access_token}" # Use Bearer token for /me endpoint
+            # The 'Key YOUR-API-KEY' format is typically for server-to-server API calls like creating payments,
+            # not usually for verifying the user token via /me. Double-check Pi Docs if needed.
+        }
+        logging.debug(f"Pi Auth Verify: Calling Pi API ({pi_verify_url}) to verify token for user UID: {pi_user_info.get('uid')}")
+
+        try:
+            response = requests.get(pi_verify_url, headers=headers, timeout=10)
+            response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
+            verified_user_data = response.json()
+
+            # --- IMPORTANT: Check if the verified user matches the one sent from frontend ---
+            # This prevents scenarios where a valid token for user A is sent alongside user B's info.
+            if verified_user_data.get("uid") != pi_user_info.get("uid"):
+                 logging.error(f"Pi Auth Verify: Mismatch between token owner ({verified_user_data.get('uid')}) and provided user info ({pi_user_info.get('uid')}).")
+                 return jsonify({"status": "error", "message": "Pi token verification mismatch."}), 403 # Forbidden
+
+            logging.info(f"Pi Auth Verify: Successfully verified token for Pi user: {verified_user_data.get('username')} (UID: {verified_user_data.get('uid')})")
+
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Pi Auth Verify: Error calling Pi API: {e}", exc_info=True)
+            # Check for specific status codes if needed (e.g., 401 Unauthorized might mean expired/invalid token)
+            status_code = e.response.status_code if e.response is not None else 500
+            error_message = "Failed to verify with Pi Network API."
+            if status_code == 401:
+                error_message = "Pi token is invalid or expired."
+            return jsonify({"status": "error", "message": error_message}), status_code if status_code != 500 else 503 # Service Unavailable or original code
+
+        # --- User Lookup / Creation in Local DB ---
+        pi_uid = verified_user_data.get("uid")
+        pi_username = verified_user_data.get("username")
+
+        # Find user by Pi UID first
+        user = db.users.find_one({"pi_uid": pi_uid})
+
+        if not user:
+            # If not found by Pi UID, maybe check by email if Pi provides it and if you want to link accounts?
+            # For now, let's assume Pi UID is the primary link or create a new user.
+            logging.info(f"Pi Auth Verify: Pi user {pi_username} (UID: {pi_uid}) not found in local DB. Creating new user.")
+            # Create a new user record
+            # You might want to prompt the user for additional details later (e.g., email, country)
+            # or use defaults.
+            new_user_data = {
+                "pi_uid": pi_uid,
+                "pi_username": pi_username,
+                "naam": pi_username, # Use Pi username as default name
+                "email": None, # Or potentially derive/ask later
+                "wachtwoord": None, # No password for Pi-authenticated users
+                "land": None,
+                "full_land_name": None,
+                "preferred_language": "en", # Default language
+                "timestamp": datetime.utcnow().isoformat(),
+                "registration_method": "pi_network" # Track how user was created
+            }
+            insert_result = db.users.insert_one(new_user_data)
+            user_id_obj = insert_result.inserted_id
+            logging.info(f"Pi Auth Verify: Created new user for {pi_username}. Local ID: {user_id_obj}")
+        else:
+            user_id_obj = user["_id"]
+            # Optionally update local user data (e.g., username) if it changed in Pi Network
+            if user.get("pi_username") != pi_username or user.get("naam") != pi_username:
+                 db.users.update_one(
+                     {"_id": user_id_obj},
+                     {"$set": {"pi_username": pi_username, "naam": pi_username}}
+                 )
+                 logging.info(f"Pi Auth Verify: Updated username for existing user {pi_uid}.")
+            logging.info(f"Pi Auth Verify: Found existing user for Pi UID {pi_uid}. Local ID: {user_id_obj}")
+
+
+        # --- Create Session ---
+        session["gebruiker"] = {
+            "id": str(user_id_obj), # Convert ObjectId to string for session
+            "pi_uid": pi_uid,
+            "pi_username": pi_username,
+            "naam": pi_username, # Use Pi username from verified data
+            "email": user.get("email") if user else None, # Get email if user existed
+            "land": user.get("land") if user else None,
+            "auth_method": "pi_network" # Indicate auth method in session
+        }
+        session.modified = True
+        logging.info(f"Pi Auth Verify: Session created for user {pi_username} (Local ID: {str(user_id_obj)})")
+
+        return jsonify({
+            "status": "success",
+            "message": "Pi authentication successful and session created.",
+            "user": { # Send back some user info if needed by frontend
+                "id": str(user_id_obj),
+                "naam": pi_username
+            }
+        }), 200
+
+    except Exception as e:
+        logging.error(f"Pi Auth Verify: Unexpected error: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": "Internal server error during Pi authentication verification."}), 500
+
+
+# --- Pi Network Incomplete Payment Handler ---
+@auth_bp.route("/payment/complete", methods=["POST"])
+def pi_payment_complete():
+    """
+    Handles the callback from the Pi SDK for incomplete payments.
+    Placeholder implementation.
+    """
+    # Authentication/Authorization check: Ensure this request is valid.
+    # Is the user logged in via Pi? Does the payment belong to them?
+    # This might require checking the session or other means.
+    # For now, we assume the call is legitimate if it reaches here.
+
+    try:
+        data = request.json
+        payment_id = data.get("paymentId")
+        txid = data.get("txid")
+        # debug_flag = data.get("debug") # e.g., 'cancel'
+
+        if not payment_id or not txid:
+            logging.warning("Pi Payment Complete: Missing paymentId or txid in request.")
+            return jsonify({"status": "error", "message": "Missing payment details."}), 400
+
+        logging.info(f"Pi Payment Complete: Received callback for Payment ID: {payment_id}, TXID: {txid}")
+
+        # --- TODO: Implement actual logic ---
+        # 1. Verify this payment ID and TXID against Pi Network API (requires server API key)
+        #    - Call Pi API endpoint to get payment details (e.g., /v2/payments/{payment_id})
+        #    - Use the 'Authorization: Key YOUR_PI_API_KEY' header.
+        # 2. Check the payment status from the API response.
+        # 3. If payment is confirmed ('completed', 'approved', etc.):
+        #    - Mark the corresponding order/transaction in your local database as complete.
+        #    - Grant access to the purchased item/service.
+        # 4. If payment failed or was cancelled:
+        #    - Update local database accordingly.
+        # 5. Respond to the frontend.
+
+        pi_api_key = current_app.config.get("PI_API_KEY")
+        if not pi_api_key:
+             logging.error("Pi Payment Complete: PI_API_KEY is not configured.")
+             # Decide if you should proceed without verification or return error
+             # return jsonify({"status": "error", "message": "Server configuration error (Missing API Key)."}), 500
+
+
+        # Placeholder response - Assume success for now
+        logging.info(f"Pi Payment Complete: Placeholder - Processed payment {payment_id}.")
+        return jsonify({"status": "success", "message": f"Payment {payment_id} processed (placeholder)."}), 200
+
+    except Exception as e:
+        logging.error(f"Pi Payment Complete: Error processing incomplete payment: {e}", exc_info=True)
+        return jsonify({"status": "error", "message": "Internal server error processing payment callback."}), 500
